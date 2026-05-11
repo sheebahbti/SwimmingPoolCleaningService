@@ -4,39 +4,28 @@
 
 ## Phase 1 — Choosing Technology
 
-| Layer | Technology | Reasoning |
-|---|---|---|
-| **Backend API** | Node.js + Express (TypeScript) | This is a CRUD/scheduling app — Express is lightweight, fast to develop. TypeScript on both frontend and backend means one language across the whole stack, reducing context-switching. |
-| **Database** | PostgreSQL + Prisma | Relational data (customers → pools → appointments → maintenance records) is a perfect fit for PostgreSQL. Prisma provides auto-generated types, type-safe queries, and painless migrations — ideal for a TypeScript stack. |
-| **Frontend** | React + TypeScript + Tailwind CSS | Component-based for reusable forms/tables; TypeScript catches contract mismatches with the API early; Tailwind speeds up scheduling UI |
-| **Auth** | Passport.js + JWT | Lightweight, well-documented, no vendor lock-in. For a service business app with a small user base (admins + technicians + customers), this is the right level of complexity. |
-| **Calendar UI** | FullCalendar (React) | Purpose-built for scheduling; drag-and-drop rescheduling out of the box |
-| **Email/SMS Notifications** | Nodemailer (email) + Twilio (SMS) | Nodemailer is free for SMTP-based email (or pair with SendGrid). Twilio handles SMS reminders. Both have excellent Node.js SDKs. |
-| **Payments** | Stripe | Industry standard, excellent sandbox, webhooks for payment confirmation, great Node.js SDK |
-| **Deployment** | Vercel (frontend) + Railway or Render (backend + PostgreSQL) | Simpler and cheaper than Azure/AWS for a small business app. Vercel has first-class React support. Railway/Render offer managed PostgreSQL with free tiers and zero-config deploys from GitHub. |
+See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, rationale, NoSQL comparison, and scaling strategy.
 
-### Why Node.js over ASP.NET Core for this project?
-
-1. **Scope** — This is a scheduling/CRUD app, not an enterprise system. Express keeps things lean.
-2. **One language** — TypeScript end-to-end means shared validation schemas, shared types, less mental overhead.
-3. **Ecosystem** — npm has purpose-built packages for every feature listed (scheduling, PDF invoices, email, payments).
-4. **Deployment cost** — Node.js apps deploy cheaply on Railway/Render/Vercel. Azure App Service is more expensive for what you need.
-5. **Speed of development** — Faster iteration for a small team building an MVP.
+**Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Vercel + Railway.
 
 ---
 
 ## Phase 2 — Choosing Team
 
 - **Project Manager (1)** — Owns timeline, coordinates across phases, removes blockers
+- **Dev Manager (1)** — Technical leadership, code reviews, architecture decisions, mentors developers
 - **Full-Stack Developer (2)** — Node.js/Express backend + React frontend; both should be strong in TypeScript
-- **UI/UX Designer (1)** — Designs customer-facing booking flow, technician mobile views, and admin dashboard
+- **UI/UX Designer (1, ~50%)** — Designs customer-facing booking flow, technician mobile views, and admin dashboard
 - **QA Engineer (1)** — Manual + automated testing; writes integration tests from Phase 4 onward
 - **DevOps / Cloud Engineer (0.5, part-time)** — Sets up CI/CD pipeline, deployment to Railway/Vercel, database backups
 
+**Total team: 6.5 people (4.75 FTE)**
+
 ### Team Notes
 
-- For an MVP, a **lean team of 3–4** (PM + 2 devs + part-time designer) can cover Phases 1–5.
-- Scale up QA and DevOps as the product matures into Phases 6–9.
+- All team members use AI tools (GitHub Copilot, ChatGPT, Cursor) throughout development.
+- AI accelerates code generation, documentation, and boilerplate but cannot replace: hiring decisions, UX research, domain expertise, stakeholder alignment, QA edge-case testing, security reviews, and production incident response.
+- For an MVP, the full team covers Phases 1–6 in **~7–8 weeks** with AI-assisted development.
 - Consider a domain expert (pool service industry) as an advisor for workflow validation.
 
 ---
@@ -67,13 +56,18 @@
 
 ---
 
-## Phase 5 — Customer & Pool Management
+## Phase 5 — User & Pool Management
 
-- CRUD endpoints for customers (name, contact, address)
+- CRUD endpoints for **all user types** with role-based access:
+  - **Admin** — manages technicians, customers, schedules, and business settings
+  - **Technician** — views assigned appointments, logs maintenance records, uploads photos
+  - **Customer** — books appointments, views service history, manages their pools
+- User registration and profile management (name, contact, address, role)
+- Admin can create/edit/deactivate technician and customer accounts
 - Each customer can have one or more `Pool` records (size, type, location notes)
-- React pages: customer list, customer detail/edit, add pool
+- React pages: user list (filtered by role), user detail/edit, add pool (for customers)
 
-**Why Phase 5:** Customers are the root entity — appointments and maintenance records all hang off them.
+**Why Phase 5:** Users are the root entity — appointments, maintenance records, and pools all hang off them. All three roles must exist before scheduling can work.
 
 ---
 
@@ -148,7 +142,47 @@
 
 ## MVP Recommendation
 
-Deliver **Phases 1–6** first for a working booking system with a defined team and architecture.  
+Deliver **Phases 1–6** first for a working booking system with a defined team and architecture (~7–8 weeks with AI-assisted development).  
 **Phases 7–9** add operational depth, retention, and revenue.  
 **Phase 10** operationalizes the field team.  
-**Phase 11** takes the product live.
+**Phase 11** takes the product live.  
+**Full go-live: ~14–16 weeks (~3.5–4 months) with AI.**
+
+---
+
+## Timeline (AI-Assisted Development)
+
+All estimates assume AI tools (GitHub Copilot, ChatGPT, Cursor) are used throughout every step.
+
+| Phase | Description | Duration | What AI Helps With |
+|---|---|---|---|
+| Phase 1 | Technology choices | 2–3 days | Compares options, generates rationale docs |
+| Phase 2 | Team assembly | 1 week | Can’t speed up hiring |
+| Phase 3 | System design & wireframes | 1 week | Generates ER diagrams, API contracts, architecture docs |
+| Phase 4 | Foundation & infrastructure | 1.5 weeks | Scaffolds Express app, Prisma schema, JWT auth, GitHub Actions |
+| Phase 5 | User & pool management (CRUD) | 1.5 weeks | Generates CRUD endpoints, React components, validation |
+| Phase 6 | Appointment scheduling + calendar | 2 weeks | Calendar integration, conflict detection logic, tests |
+| | **MVP Total (Phases 1–6)** | **~7–8 weeks (~2 months)** | |
+| Phase 7 | Service photos & history | 1 week | S3 upload logic, image handling, history queries |
+| Phase 8 | Notifications & reminders | 1 week | Twilio/SendGrid integration boilerplate, cron jobs |
+| Phase 9 | Invoicing & payments (Stripe) | 2 weeks | Stripe integration, webhook handlers, PDF generation |
+| Phase 10 | Mobile/technician PWA | 2 weeks | Service worker setup, responsive components |
+| Phase 11 | Deployment & go-live | 1 week | CI/CD configs, Dockerfiles, monitoring setup, runbooks |
+| | **Full Product (Phases 1–11)** | **~14–16 weeks (~3.5–4 months)** | |
+
+---
+
+## What AI Cannot Help With
+
+AI accelerates code generation, documentation, and boilerplate — but these areas still require human judgment:
+
+| Area | Why AI Can’t Replace Humans | Impact |
+|---|---|---|
+| **Hiring & team assembly** | Interviewing, culture fit, and availability are human decisions | Team assembly still takes ~1 week regardless of AI |
+| **UX design decisions** | AI can generate wireframes, but understanding how a pool technician actually works in the field requires domain empathy and user research | Bad UX = users won’t adopt the product |
+| **Domain knowledge** | AI doesn’t know the pool cleaning industry — seasonal patterns, chemical requirements, route logistics, pricing models | Wrong assumptions → wrong features |
+| **Stakeholder alignment** | Getting buy-in, prioritizing features, resolving conflicting requirements — these are conversations, not code | Misalignment causes rework |
+| **QA edge cases** | AI writes tests for happy paths well, but finding obscure bugs (double-booking race conditions, timezone edge cases, payment failure scenarios) requires human testing intuition | Missed edge cases = production bugs |
+| **Security review** | AI can follow patterns but may miss context-specific vulnerabilities (e.g., business logic flaws, authorization bypasses between roles) | Security gaps can’t be caught by pattern-matching alone |
+| **Production monitoring** | AI can set up dashboards, but interpreting alerts, deciding when to scale, and handling incidents requires human judgment | Downtime decisions need context |
+| **User feedback & iteration** | AI can’t talk to customers or observe how they struggle with the UI | Building the wrong thing faster is still building the wrong thing |
