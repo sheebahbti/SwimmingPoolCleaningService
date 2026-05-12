@@ -18,6 +18,9 @@ export default function Layout() {
         </Link>
         <div className="flex items-center gap-6">
           <Link to="/" className="text-sm hover:text-blue-200 transition">Dashboard</Link>
+          <Link to="/schedules" className="text-sm hover:text-blue-200 transition">
+            {user?.role === 'TECHNICIAN' ? 'My Jobs' : 'Appointments'}
+          </Link>
           {user?.role === 'CUSTOMER' && (
             <Link to="/pools" className="text-sm hover:text-blue-200 transition">My Pools</Link>
           )}
