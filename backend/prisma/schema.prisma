@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ──────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+// ── Models ─────────────────────────────────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  phone     String
+  role      Role
+  password  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  pools              Pool[]
+  schedulesAsCustomer   Schedule[] @relation("CustomerSchedules")
+  schedulesAsTechnician Schedule[] @relation("TechnicianSchedules")
+}
+
+model Pool {
+  id         Int     @id @default(autoincrement())
+  customerId Int
+  address    String
+  size       String
+  type       String
+  notes      String?
+
+  // Relations
+  customer  User       @relation(fields: [customerId], references: [id])
+  schedules Schedule[]
+}
+
+model Schedule {
+  id           Int            @id @default(autoincrement())
+  customerId   Int
+  technicianId Int
+  poolId       Int
+  date         DateTime
+  status       ScheduleStatus @default(SCHEDULED)
+  notes        String?
+  createdAt    DateTime       @default(now())
+
+  // Relations
+  customer          User               @relation("CustomerSchedules", fields: [customerId], references: [id])
+  technician        User               @relation("TechnicianSchedules", fields: [technicianId], references: [id])
+  pool              Pool               @relation(fields: [poolId], references: [id])
+  maintenanceRecord MaintenanceRecord?
+  invoice           Invoice?
+}
+
+model MaintenanceRecord {
+  id             Int      @id @default(autoincrement())
+  scheduleId     Int      @unique
+  workDone       String
+  chemicalsUsed  String?
+  photoBeforeUrl String?
+  photoAfterUrl  String?
+  completedAt    DateTime
+
+  // Relations
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+}
+
+model Invoice {
+  id         Int           @id @default(autoincrement())
+  scheduleId Int           @unique
+  amount     Decimal
+  status     InvoiceStatus @default(PENDING)
+  dueDate    DateTime
+  paidAt     DateTime?
+
+  // Relations
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+}

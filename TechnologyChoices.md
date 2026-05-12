@@ -78,6 +78,49 @@ That's a future scaling concern, not an MVP concern.
 4. **Deployment cost** — Node.js apps deploy cheaply on Railway/Render/Vercel. Azure App Service is more expensive for what we need.
 5. **Speed of development** — Faster iteration for a small team building an MVP.
 
+### Backend npm Packages
+
+#### Production Dependencies
+
+| Package | What It Does |
+|---|---|
+| `express` | Web server framework — handles routing, middleware, request/response |
+| `prisma` | Database toolkit — runs migrations, generates the client from `schema.prisma` |
+| `@prisma/client` | Auto-generated, type-safe query builder for PostgreSQL |
+| `cors` | Middleware to allow the React frontend to call the API from a different origin |
+| `dotenv` | Loads `.env` file so secrets (DB URL, JWT secret) stay out of code |
+| `bcrypt` | Hashes passwords before storing them — never store plain text |
+| `jsonwebtoken` | Creates and verifies JWT tokens for stateless authentication |
+| `passport` | Authentication middleware framework — pluggable strategies |
+| `passport-local` | Strategy for email/password login |
+| `passport-jwt` | Strategy for protecting routes with JWT tokens |
+
+#### Dev Dependencies
+
+| Package | What It Does |
+|---|---|
+| `typescript` | TypeScript compiler — compiles `.ts` files to JavaScript |
+| `ts-node` | Runs TypeScript files directly without a separate compile step |
+| `nodemon` | Auto-restarts the server when files change during development |
+| `@types/node` | TypeScript type definitions for Node.js built-in modules |
+| `@types/express` | TypeScript type definitions for Express |
+| `@types/cors` | TypeScript type definitions for cors |
+| `@types/bcrypt` | TypeScript type definitions for bcrypt |
+| `@types/jsonwebtoken` | TypeScript type definitions for jsonwebtoken |
+| `@types/passport` | TypeScript type definitions for Passport |
+| `@types/passport-local` | TypeScript type definitions for passport-local |
+| `@types/passport-jwt` | TypeScript type definitions for passport-jwt |
+
+#### Install Commands
+
+```bash
+# Production dependencies
+npm install express prisma @prisma/client cors dotenv bcrypt jsonwebtoken passport passport-jwt passport-local
+
+# Dev dependencies
+npm install -D typescript @types/node @types/express @types/cors @types/bcrypt @types/jsonwebtoken @types/passport @types/passport-jwt @types/passport-local ts-node nodemon
+```
+
 ---
 
 ## Frontend: React + TypeScript + Tailwind CSS
