@@ -4,7 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useAuth } from '../hooks/useAuth';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
 interface Schedule {
@@ -26,6 +26,7 @@ const statusColors: Record<string, string> = {
 
 export default function SchedulesPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -148,8 +149,8 @@ export default function SchedulesPage() {
                     </button>
                   )}
                   {user?.role === 'TECHNICIAN' && s.status === 'IN_PROGRESS' && (
-                    <button onClick={() => updateStatus(s.id, 'COMPLETED')} className="text-green-600 hover:underline">
-                      Complete
+                    <button onClick={() => navigate(`/maintenance/${s.id}`)} className="text-green-600 hover:underline">
+                      Log &amp; Complete
                     </button>
                   )}
                   {/* Customer cancel */}

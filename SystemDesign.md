@@ -30,13 +30,16 @@
        │   (Railway)     │    Single instance, stateless
        └────────┬────────┘
                 │
-     ┌──────────┼──────────┐
-     │                     │
-┌────▼─────┐         ┌────▼──────────┐
-│PostgreSQL│         │ Object Store  │
-│   (DB)   │         │ (S3 / R2)     │
-│ Railway  │         │ Pool Photos   │
-└──────────┘         └───────────────┘
+     ┌──────────┼──────────┬─────────────┬───────────┐
+     │          │          │             │           │
+┌────▼─────┐ ┌──▼───────┐ ┌▼─────────┐ ┌─▼──────┐ ┌──▼────┐
+│PostgreSQL│ │Cloudflare│ │Nodemailer│ │ Twilio │ │Stripe │
+│   (DB)   │ │    R2    │ │  (SMTP)  │ │ (SMS)  │ │(Pay)  │
+│ Railway  │ │ (photos)*│ │Mailtrap**│ │        │ │       │
+└──────────┘ └──────────┘ └──────────┘ └────────┘ └───────┘
+
+*  Local disk for development, Cloudflare R2 for production
+** Mailtrap for testing (catches emails), SendGrid for production
 ```
 
 **Why this is enough:**
@@ -73,12 +76,24 @@
 - **Backups:** Railway automated daily snapshots
 - **Cost:** Railway free tier → ~$5–$10/month on Pro
 
-### 4. Object Storage (S3 / Cloudflare R2)
+### 4. Object Storage — Pool Photos
 
-- **What:** AWS S3 or Cloudflare R2
-- **Why:** Before & after pool photos should NOT go in the database. Object storage is cheaper, faster, and scalable for binary files.
-- **Flow:** App server generates a pre-signed upload URL → technician uploads directly to S3 → URL stored in database
-- **Cost:** R2 free tier (10 GB) or S3 (~$0.023/GB)
+- **What:** Storage for before & after pool cleaning photos
+- **Why:** Binary files (images) should NOT go in the database. Object storage is cheaper, faster, and scalable.
+- **Production choice:** **Cloudflare R2** — $0 egress fees, free tier never expires, S3-compatible
+- **Development:** Local disk storage (files saved to `backend/uploads/`)
+- **Flow:** App server generates pre-signed upload URL → technician uploads directly to R2 → URL stored in database
+
+**Storage options comparison:**
+
+| Option | Free Tier | Egress Fees | Best For |
+|--------|-----------|-------------|----------|
+| **Cloudflare R2** ✓ | 10 GB (never expires) | **$0** | Our choice for production |
+| AWS S3 | 5 GB (12 months) | $0.09/GB | Enterprise, AWS ecosystem |
+| Azure Blob | 5 GB (12 months) | $0.087/GB | Azure ecosystem |
+| Local disk | Unlimited | N/A | Development only |
+
+**Why R2 over S3/Azure:** Zero egress fees (viewing images is free), no credit card required, free tier doesn't expire.
 
 ### 5. External Services
 
@@ -86,7 +101,7 @@
 |---|---|---|
 | **Stripe** | Payment processing for invoices | 2.9% + $0.30 per transaction |
 | **Twilio** | SMS appointment reminders | ~$0.0079/SMS |
-| **Nodemailer** | Email confirmations (via Gmail or SendGrid) | Free (Gmail) or ~$0/month (SendGrid free tier) |
+| **Nodemailer** | Email confirmations (via Mailtrap for testing, SendGrid for production) | Free (Mailtrap free tier: 100/month) |
 
 ---
 
@@ -105,14 +120,36 @@ Customer → Vercel CDN → App Server (Railway)
 
 ## Data Flow — Technician Uploading Photos
 
+### Development (Local Storage)
+
 ```
-Technician PWA → Vercel CDN → App Server (Railway)
-                                    │
-                                    ├─→ Generate pre-signed S3/R2 URL
-                                    │
-Technician PWA ──────────────────→ S3/R2 (direct upload)
-                                    │
-                                    └─→ PostgreSQL (store photo URL in service record)
+Technician → Vercel CDN → App Server (Railway)
+                               │
+                               ├─→ multer middleware (parses multipart/form-data)
+                               ├─→ Saves file to backend/uploads/ folder
+                               ├─→ Returns URL: /uploads/abc123.jpg
+                               │
+                               ├─→ POST /api/maintenance (with photo URLs)
+                               └─→ PostgreSQL (store photo URL in MaintenanceRecord)
+
+Viewing photos:
+Browser → GET /uploads/abc123.jpg → express.static serves file from disk
+```
+
+### Production (Cloudflare R2)
+
+```
+Technician → Vercel CDN → App Server (Railway)
+                               │
+                               ├─→ Generate pre-signed R2 upload URL
+                               │
+Technician ───────────────→ Cloudflare R2 (direct upload, app server not involved)
+                               │
+                               ├─→ POST /api/maintenance (with R2 URLs)
+                               └─→ PostgreSQL (store R2 URL in MaintenanceRecord)
+
+Viewing photos:
+Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 ```
 
 ---
@@ -239,7 +276,8 @@ A cloud platform that runs your code — like renting a computer in the cloud. Y
 | React frontend | **Vercel** | Free, auto-deploy, optimized for static sites |
 | App Server (Express API) | **Railway** | Free tier, auto-deploy, same platform as DB |
 | PostgreSQL database | **Railway** | Co-located with app server for low latency |
-| Pool photos | **S3 / Cloudflare R2** | Designed for file storage — cheap, scalable |
-| Email delivery | **Gmail / SendGrid** | Email delivery service |
+| Pool photos (dev) | **Local disk** | Zero setup, testing file upload logic |
+| Pool photos (prod) | **Cloudflare R2** | $0 egress fees, free tier never expires |
+| Email delivery | **Mailtrap** (testing) / **SendGrid** (production) | Test emails safely before going live |
 | SMS delivery | **Twilio** | SMS delivery service |
 | Payment processing | **Stripe** | PCI-compliant payment processor |

@@ -90,6 +90,37 @@ const users = await prisma.user.findMany();
 
 ---
 
+## Why Separate Frontend and Backend Servers?
+
+| | Backend (port 3000) | Frontend (port 5173) |
+|---|---|---|
+| **Built with** | Express (Node.js) | Vite (React) |
+| **Serves** | JSON data via API endpoints | HTML, CSS, JS (the UI) |
+| **Example response** | `{ "id": 1, "status": "SCHEDULED" }` | The actual webpage you see |
+| **Runs** | Node.js runtime | Vite dev server (hot reload) |
+
+### Why not one server?
+
+1. **Different jobs** — Express handles business logic (auth, database queries, file uploads). Vite handles compiling React/TypeScript/Tailwind into browser-ready files with instant hot reload.
+
+2. **Independent scaling** — In production, the frontend (static files) goes to **Vercel** (CDN, globally distributed) and the backend goes to **Railway** (runs Node.js near the database). One server can't do both well.
+
+3. **Development speed** — Vite gives instant hot module replacement (change a component → browser updates in milliseconds). Express restarts the whole Node process via nodemon. Mixing them would slow down frontend development.
+
+### How they talk to each other (development)
+
+```
+Browser (port 5173) → GET /api/schedules → Vite proxy → Backend (port 3000) → PostgreSQL
+```
+
+The Vite proxy in `vite.config.ts` forwards any `/api` or `/uploads` request to port 3000, so the browser thinks it's all one server.
+
+### In production, there's no Vite server
+
+You run `npm run build` → Vite outputs static files → Vercel serves them from a CDN. Only the Express backend runs as a live server.
+
+---
+
 ## Language vs Framework
 
 | Language | What it does | Framework | What it does |
@@ -232,6 +263,21 @@ postgresql://postgres:yourpassword@localhost:5432/swimming_pool_dev
 
 **Authentication:** Ubuntu PostgreSQL defaults to `peer` auth for local connections and `scram-sha-256` for TCP (localhost:5432). Your app connects via TCP, so the password in the connection string must match.
 
+### How to Browse Database Tables — Prisma Studio
+
+```bash
+cd backend
+npx prisma studio
+```
+
+Opens a visual UI at http://localhost:5555 where you can:
+- Browse all tables (User, Pool, Schedule, MaintenanceRecord, Invoice)
+- Filter and sort rows
+- Edit or delete records directly
+- See relationships between tables
+
+No SQL knowledge needed. It reads your `schema.prisma` and connects to the database automatically.
+
 ---
 
 ## Environment Variables (`.env`)
@@ -244,6 +290,13 @@ postgresql://postgres:yourpassword@localhost:5432/swimming_pool_dev
 DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/swimming_pool_dev"
 JWT_SECRET="a-strong-random-secret"
 PORT=3000
+
+# Email (Nodemailer)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=Pool Cleaning Service <noreply@poolservice.com>
 ```
 
 - `dotenv.config()` in `index.ts` loads these into `process.env` at startup.
@@ -258,17 +311,18 @@ SwimmingPoolCleaningService/
 │   ├── src/
 │   │   ├── index.ts          ← Express server entry point
 │   │   ├── lib/
-│   │   │   └── prisma.ts     ← Database connection (shared client)
-│   │   ├── controllers/      ← Empty (business logic goes here)
-│   │   ├── routes/            ← Empty (API endpoints go here)
-│   │   └── middleware/        ← Empty (auth guards go here)
+│   │   │   ├── prisma.ts     ← Database connection (shared client)
+│   │   │   └── email.ts      ← Nodemailer email service
+│   │   ├── controllers/      ← Business logic (auth, schedule, etc.)
+│   │   ├── routes/           ← API endpoint definitions
+│   │   └── middleware/       ← Auth guards, validation
 │   ├── prisma/
 │   │   ├── schema.prisma      ← Database table definitions
 │   │   └── migrations/        ← SQL that created the tables
 │   ├── prisma.config.ts       ← Tells Prisma where the DB is
 │   ├── tsconfig.json          ← TypeScript settings
 │   ├── package.json           ← Dependencies & scripts
-│   ├── .env                   ← Secrets (DB URL, JWT key)
+│   ├── .env                   ← Secrets (DB URL, JWT key, SMTP)
 │   ├── .npmrc                 ← Points npm to public registry
 │   └── .gitignore             ← Files git won't track
 ├── requirement.md             ← What we're building (all phases)
@@ -607,3 +661,390 @@ Wrap any route with `<ProtectedRoute>` to require authentication.
 - Cleared on `logout()` with `localStorage.removeItem('token')`
 
 **Security note:** localStorage is vulnerable to XSS attacks. For production, consider httpOnly cookies instead. For a learning project, localStorage is fine.
+
+---
+
+## Nodemailer — Sending Emails
+
+Nodemailer is a Node.js library for sending emails. We use it to send appointment confirmations when a schedule is created.
+
+### What Nodemailer Does
+
+1. Connects to an SMTP server (Gmail, SendGrid, Mailtrap, etc.)
+2. Composes an email (to, from, subject, body)
+3. Sends it through the SMTP server
+
+### Install
+
+```bash
+npm install nodemailer
+npm install -D @types/nodemailer
+```
+
+### Basic Setup
+
+Create `src/lib/email.ts`:
+
+```typescript
+import nodemailer from 'nodemailer';
+
+// Create a reusable transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,           // e.g., 'smtp.gmail.com'
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false,                          // true for port 465, false for 587
+  auth: {
+    user: process.env.SMTP_USER,          // your email
+    pass: process.env.SMTP_PASS,          // app password (not your real password)
+  },
+});
+
+// Send an email
+export async function sendEmail(to: string, subject: string, html: string) {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'noreply@poolservice.com',
+    to,
+    subject,
+    html,
+  });
+}
+```
+
+### Environment Variables
+
+Add to `.env`:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=Pool Cleaning Service <noreply@poolservice.com>
+```
+
+### Gmail App Password (For Development)
+
+Gmail requires an **App Password** — not your regular password:
+
+1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+2. Select "Mail" and "Other (Custom name)" → enter "Pool Service"
+3. Click Generate → copy the 16-character password
+4. Use this as `SMTP_PASS` in `.env`
+
+**Requires:** 2-Factor Authentication enabled on your Google account.
+
+### Mailtrap — Email Testing Environment
+
+Mailtrap is a **fake email inbox** for developers. Think of it as a **testing environment for emails** — it catches every email your app sends so you can verify they look correct before real customers ever see them.
+
+**Why use Mailtrap?**
+
+| Problem | Without Mailtrap | With Mailtrap |
+|---------|------------------|---------------|
+| Testing emails | Spam real inboxes | Emails go to your test inbox |
+| Accidental sends | Customer gets test data | Email is intercepted |
+| Broken templates | Customer sees broken HTML | You catch it first |
+| Slow delivery | Wait minutes to verify | Instant preview |
+| Domain blacklisting | Risk being marked as spam | Zero risk |
+
+**How it works:**
+```
+Your app sends email to "customer@example.com"
+         ↓
+    Mailtrap intercepts it (email NEVER reaches real inbox)
+         ↓
+    Email appears in YOUR Mailtrap dashboard
+         ↓
+    You verify: subject, content, HTML rendering, links
+```
+
+**Setup:**
+
+1. Sign up at [mailtrap.io](https://mailtrap.io) (free tier: 100 emails/month)
+2. Go to **Email Testing** → **Inboxes** → Click your inbox
+3. Click **Show Credentials** (SMTP Settings tab)
+4. Copy credentials to your `.env` file:
+
+```
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_USER=<your-mailtrap-username>
+SMTP_PASS=<your-mailtrap-password>
+SMTP_FROM=Pool Cleaning Service <noreply@poolservice.com>
+```
+
+**Testing workflow:**
+
+1. Book an appointment in your app (logged in as customer)
+2. Go to Mailtrap dashboard → Your inbox
+3. See the confirmation email that would have been sent
+4. Check: Is the date formatted correctly? Does the technician name show? Is the HTML styled properly?
+5. Fix any issues → Test again
+
+**When to switch to real email:**
+
+| Environment | Email Service | Why |
+|-------------|--------------|-----|
+| **Development** | Mailtrap | Catch bugs before customers see them |
+| **Staging** | Mailtrap | Final QA before production |
+| **Production** | SendGrid / Gmail | Real emails to real customers |
+
+> **Rule:** Never use production email credentials in development. Always use Mailtrap until you're ready to go live.
+
+### Sending Confirmation on Schedule Creation
+
+In `schedule.controller.ts`, after creating a schedule:
+
+```typescript
+import { sendEmail } from '../lib/email';
+
+// After prisma.schedule.create()
+await sendEmail(
+  customer.email,
+  'Appointment Confirmed',
+  `<h1>Your pool cleaning is scheduled!</h1>
+   <p>Date: ${schedule.date.toLocaleDateString()}</p>
+   <p>Technician: ${schedule.technician.name}</p>`
+);
+```
+
+### Why Not SendGrid or Twilio Directly?
+
+| Service | How Nodemailer Uses It | When to Use |
+|---------|------------------------|-------------|
+| **Gmail** | SMTP transport | Development, small scale |
+| **SendGrid** | SMTP or API transport | Production, high volume, need analytics |
+| **Mailtrap** | SMTP transport | Testing without sending real emails |
+
+Nodemailer is the **client** — it talks to any SMTP server. For production, pair it with SendGrid for better deliverability and tracking.
+
+### Error Handling
+
+Wrap email sending in try/catch — don't let email failures crash the booking:
+
+```typescript
+try {
+  await sendEmail(customer.email, 'Appointment Confirmed', html);
+} catch (err) {
+  console.error('Failed to send confirmation email:', err);
+  // Log but don't fail the request — booking still succeeded
+}
+```
+
+---
+
+## File Storage — Uploading Pool Photos
+
+Technicians upload before & after photos when completing a job. These images need to be stored somewhere.
+
+### The Problem
+
+- Images are **binary files** (not text) — don't store them in the database
+- Images can be large (5-10 MB each) — need scalable storage
+- Images need to be **served to browsers** — need public URLs
+
+### Storage Options Comparison
+
+| Option | Free Tier | Expires? | Credit Card? | Best For |
+|--------|-----------|----------|--------------|----------|
+| **Local disk** | Unlimited (your computer) | N/A | No | Development only |
+| **Cloudflare R2** | 10 GB, 1M requests/month | **Never** | **No** | Learning + Production ✓ |
+| **AWS S3** | 5 GB | 12 months | Yes | Production |
+| **Azure Blob Storage** | 5 GB | 12 months | Yes | Production (Azure ecosystem) |
+| **Google Cloud Storage** | 5 GB | 90 days | Yes | Production (GCP ecosystem) |
+| **Backblaze B2** | 10 GB | Never | No | Budget production |
+| **Supabase Storage** | 1 GB | Never | No | Quick prototypes |
+
+### Our Choice: Cloudflare R2 (for production)
+
+**Why R2 for production:**
+
+| Feature | Why It Matters |
+|---------|----------------|
+| **$0 egress fees** | AWS/Azure charge ~$0.09/GB when users view images. R2 is free. |
+| **Free tier never expires** | 10 GB forever, not a 12-month trial |
+| **No credit card required** | Start immediately, no billing surprises |
+| **S3-compatible API** | Same code works if you switch to AWS later |
+| **Built-in CDN** | Images served fast globally |
+| **99.999999999% durability** | Same as AWS S3 (11 nines) |
+
+**Cost comparison at scale:**
+
+| Monthly Usage | AWS S3 | Cloudflare R2 |
+|---------------|--------|---------------|
+| 10 GB stored, 100 GB downloaded | ~$11 | **$0.15** |
+| 100 GB stored, 1 TB downloaded | ~$100 | **$1.50** |
+
+### Our Approach: Local First, Then Cloud
+
+**Phase 1 (Now):** Use **local disk storage** during development
+- Zero setup — files saved to `backend/uploads/` folder
+- Focus on learning how file uploads work (multer, multipart forms)
+- Test the complete flow end-to-end
+
+**Phase 2 (After deployment testing):** Switch to **Cloudflare R2**
+- Only change where files are saved — upload logic stays the same
+- Production-ready, scalable storage
+- No code rewrite needed
+
+### How File Uploads Work
+
+The complete flow for uploading pool photos:
+
+```
+┌──────────┐     ┌─────────┐     ┌────────┐     ┌──────────┐     ┌──────────┐
+│ Browser  │     │ Express │     │ Multer │     │  Disk /  │     │ Database │
+│(Frontend)│     │ (Route) │     │(Parser)│     │  Cloud   │     │(Prisma)  │
+└────┬─────┘     └────┬────┘     └───┬────┘     └────┬─────┘     └────┬─────┘
+     │                │              │               │                │
+     │ POST /api/uploads             │               │                │
+     │ (multipart/form-data)         │               │                │
+     │ ──────────────►│              │               │                │
+     │                │  Parse file  │               │                │
+     │                │─────────────►│               │                │
+     │                │              │  Save to disk  │                │
+     │                │              │──────────────►│                │
+     │                │              │  Return info   │                │
+     │                │              │◄──────────────│                │
+     │                │ req.file = {filename, path}  │                │
+     │                │◄─────────────│               │                │
+     │  { url: "/uploads/abc123.jpg" }               │                │
+     │ ◄──────────────│              │               │                │
+     │                │              │               │                │
+     │ POST /api/maintenance (with photo URL)        │                │
+     │ ──────────────►│              │               │   Save URL     │
+     │                │──────────────────────────────────────────────►│
+     │                │              │               │                │
+     │ GET /uploads/abc123.jpg       │               │                │
+     │ ──────────────►│              │               │                │
+     │                │  express.static('uploads')   │                │
+     │                │─────────────────────────────►│                │
+     │  Image file    │              │               │                │
+     │ ◄──────────────│              │               │                │
+```
+
+### Step-by-Step Breakdown
+
+**Step 1: User picks a file (Frontend)**
+```html
+<input type="file" accept="image/*" onChange={handleUpload} />
+```
+The browser shows a file picker. User selects a photo. The file is stored in memory in the browser.
+
+**Step 2: Frontend sends file to backend**
+```typescript
+const formData = new FormData();
+formData.append('photo', file);  // 'photo' is the field name multer expects
+await api.post('/uploads', formData);
+```
+The browser encodes the file as `multipart/form-data` — a special format for sending binary files over HTTP. This is NOT JSON. `express.json()` can't read it — that's why we need multer.
+
+**Step 3: Multer parses the file (Backend middleware)**
+```typescript
+import multer from 'multer';
+const upload = multer({ dest: 'uploads/' });
+
+// multer runs BEFORE the controller
+router.post('/uploads', upload.single('photo'), uploadController);
+```
+Multer intercepts the request, extracts the binary file from multipart/form-data, saves it to the `uploads/` folder with a random filename (e.g., `abc123def456`), and puts file info on `req.file`.
+
+**Step 4: Controller returns the URL**
+```typescript
+function uploadPhoto(req, res) {
+  // multer already saved the file — we just return the URL
+  const url = `/uploads/${req.file.filename}`;
+  res.json({ url });
+}
+```
+
+**Step 5: URL is saved to database**
+When technician submits the maintenance record, the photo URL is stored in `MaintenanceRecord.photoBeforeUrl` or `photoAfterUrl`.
+
+**Step 6: express.static serves the file**
+```typescript
+app.use('/uploads', express.static('uploads'));
+```
+When the frontend renders `<img src="/uploads/abc123.jpg">`, Express looks in the `uploads/` folder and sends the file to the browser. No controller needed — `express.static` handles it automatically.
+
+### What is multipart/form-data?
+
+HTTP has different content types:
+| Content-Type | Used For | Example |
+|---|---|---|
+| `application/json` | Sending data | `{ "name": "Alice" }` |
+| `multipart/form-data` | Sending files (+ data) | Binary image data with boundaries |
+| `text/html` | Web pages | `<html>...` |
+
+When you send a file, the browser splits the request into "parts" separated by boundaries:
+```
+------WebKitFormBoundary
+Content-Disposition: form-data; name="photo"; filename="pool.jpg"
+Content-Type: image/jpeg
+
+[binary image data here]
+------WebKitFormBoundary--
+```
+Express's `express.json()` only understands JSON. Multer understands this multipart format.
+
+### What is express.static?
+
+A built-in Express middleware that serves files from a folder. No routes or controllers needed.
+
+```typescript
+app.use('/uploads', express.static('uploads'));
+//       ↑ URL path             ↑ folder on disk
+```
+
+| Request | Express does |
+|---------|-------------|
+| `GET /uploads/abc123.jpg` | Reads `uploads/abc123.jpg` from disk → sends to browser |
+| `GET /uploads/xyz789.png` | Reads `uploads/xyz789.png` from disk → sends to browser |
+| `GET /uploads/missing.jpg` | File not found → sends 404 |
+
+It's like a simple file server. No business logic — just "here's the file you asked for."
+
+### Why Not Store Images in the Database?
+
+| | In Database (BLOB) | In File Storage |
+|---|---|---|
+| Speed | Slow — DB not optimized for binary | Fast — file systems/CDNs are built for this |
+| Size | Bloats your database | Doesn't affect DB size |
+| Cost | DB storage is expensive | File storage is cheap ($0.02/GB) |
+| Backups | Makes DB backups huge and slow | Backed up separately |
+| Serving | Must read from DB on every request | Served directly from disk/CDN |
+
+**Rule:** Store the **URL** in the database, store the **file** in file storage.
+
+### Real Example from Our App
+
+After a technician uploads a photo and submits the maintenance form, here's what's stored where:
+
+**Database (MaintenanceRecord table):**
+```json
+{
+  "id": 1,
+  "scheduleId": 3,
+  "workDone": "Complete, testing uploading of the image",
+  "chemicalsUsed": null,
+  "photoBeforeUrl": "/uploads/1778689006077-517791727.png",   ← just the URL path
+  "photoAfterUrl": null,
+  "completedAt": "2026-05-13T16:16:46.393Z"
+}
+```
+
+**Disk (backend/uploads/ folder):**
+```
+uploads/
+  .gitkeep
+  1778689006077-517791727.png   ← actual 65 KB image file
+```
+
+The database row is tiny (a few hundred bytes). The image (65 KB) lives on disk. When the frontend renders `<img src="/uploads/1778689006077-517791727.png">`, Express's `express.static` serves the file directly from the folder — no database query needed.
+
+### Security Considerations
+
+- **Validate file type** — Only accept images (jpg, png, gif), reject executables
+- **Limit file size** — Set max size (e.g., 5 MB) to prevent abuse
+- **Random filenames** — Multer generates random names by default, preventing path traversal attacks
+- **Don't trust the extension** — Check the file's actual MIME type, not just the extension

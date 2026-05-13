@@ -54,8 +54,8 @@
 | scheduleId | Int (FK) | → Schedules.id |
 | workDone | String | Description of service |
 | chemicalsUsed | String? | Optional |
-| photoBeforeUrl | String? | S3/R2 URL |
-| photoAfterUrl | String? | S3/R2 URL |
+| photoBeforeUrl | String? | File URL (local disk in dev, R2 in production) |
+| photoAfterUrl | String? | File URL (local disk in dev, R2 in production) |
 | completedAt | DateTime | |
 
 ---
@@ -152,6 +152,22 @@ Schedules           ──1:1────→  Invoices
 |--------|-------|--------------|
 | POST | `/api/maintenance` | Log work done after appointment |
 | GET | `/api/maintenance?scheduleId=1` | Get record for a schedule |
+
+### File Uploads
+
+| Method | Route | What It Does |
+|--------|-------|--------------|
+| POST | `/api/uploads` | Upload a photo (multipart/form-data via multer) → returns file URL |
+| GET | `/uploads/:filename` | Serve uploaded file (handled by express.static, no controller needed) |
+
+**Upload flow:**
+```
+1. Frontend: FormData with file → POST /api/uploads
+2. Backend: multer parses file → saves to uploads/ folder → returns { url }
+3. Frontend: Includes URL in POST /api/maintenance body
+4. Backend: Saves URL to MaintenanceRecord.photoBeforeUrl / photoAfterUrl
+5. Frontend: <img src={url}> → express.static serves file from disk
+```
 
 ### Invoices (later)
 

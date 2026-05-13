@@ -75,8 +75,8 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 
 - Endpoints to create/update/cancel appointments; assign a technician; set status (`Scheduled`, `InProgress`, `Completed`, `Cancelled`)
 - FullCalendar view showing all appointments by day/week
-- Conflict detection (prevent double-booking a technician)
-- Email confirmation via SendGrid on booking
+- ~~Conflict detection (prevent double-booking a technician)~~ — **Skipped for MVP**
+- Email confirmation via Nodemailer on booking
 
 **Why Phase 6:** Core value of the service; requires customers and technicians to already exist.
 
@@ -85,6 +85,10 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 ## Phase 7 — Service Photos & History
 
 - After an appointment is marked `Completed`, technicians upload before and after photos of the pool
+- **Storage approach:**
+  - **Development:** Local disk (`backend/uploads/` folder) — zero setup, test upload logic
+  - **Production:** Cloudflare R2 — $0 egress fees, free tier never expires
+- File upload via `multer` middleware, pre-signed URLs for direct browser uploads in production
 - Customer-facing history view ("your last 5 services")
 - Alerts when a pool is overdue for service
 
@@ -161,9 +165,9 @@ All estimates assume AI tools (GitHub Copilot, ChatGPT, Cursor) are used through
 | Phase 3 | System design & wireframes | 1 week | Generates ER diagrams, API contracts, architecture docs |
 | Phase 4 | Foundation & infrastructure | 1.5 weeks | Scaffolds Express app, Prisma schema, JWT auth, GitHub Actions |
 | Phase 5 | User & pool management (CRUD) | 1.5 weeks | Generates CRUD endpoints, React components, validation |
-| Phase 6 | Appointment scheduling + calendar | 2 weeks | Calendar integration, conflict detection logic, tests |
+| Phase 6 | Appointment scheduling + calendar | 1.5 weeks | Calendar integration, email confirmation, tests (conflict detection skipped) |
 | | **MVP Total (Phases 1–6)** | **~7–8 weeks (~2 months)** | |
-| Phase 7 | Service photos & history | 1 week | S3 upload logic, image handling, history queries |
+| Phase 7 | Service photos & history | 1 week | Local storage first, then R2 upload logic, image handling, history queries |
 | Phase 8 | Notifications & reminders | 1 week | Twilio/SendGrid integration boilerplate, cron jobs |
 | Phase 9 | Invoicing & payments (Stripe) | 2 weeks | Stripe integration, webhook handlers, PDF generation |
 | Phase 10 | Mobile/technician PWA | 2 weeks | Service worker setup, responsive components |

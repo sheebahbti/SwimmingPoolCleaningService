@@ -7,6 +7,7 @@ import ProfilePage from './pages/ProfilePage';
 import PoolsPage from './pages/PoolsPage';
 import SchedulesPage from './pages/SchedulesPage';
 import BookingPage from './pages/BookingPage';
+import MaintenancePage from './pages/MaintenancePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -27,6 +28,7 @@ function App() {
         <Route path="/pools" element={<PoolsPage />} />
         <Route path="/schedules" element={<SchedulesPage />} />
         <Route path="/book" element={<BookingPage />} />
+        <Route path="/maintenance/:scheduleId" element={<MaintenancePage />} />
         <Route path="/users" element={<UsersPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

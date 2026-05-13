@@ -7,11 +7,11 @@
 | Backend | Node.js + Express | Async I/O, single language, huge ecosystem |
 | Database | PostgreSQL + Prisma | Relational data, ACID compliance, date/time support |
 | Auth | JWT + bcrypt | Stateless sessions, secure password hashing |
-| Email | Nodemailer + SendGrid | Reliable delivery, free tier, analytics |
+| Email | Nodemailer + Mailtrap (testing) / SendGrid (production) | Test emails safely, reliable delivery |
 | Payments | Stripe | PCI compliant, best developer experience |
-| File Storage | Azure Blob Storage | Photo uploads, integrates natively with Azure hosting |
-| Hosting | Azure App Service | Managed hosting, auto-scaling, custom domain, SSL |
-| Database Hosting | Azure Database for PostgreSQL | Managed PostgreSQL, built-in backups, same Azure ecosystem |
+| File Storage | Local disk (dev) / Cloudflare R2 (production) | $0 egress, free tier never expires, S3-compatible |
+| Hosting | Railway (backend) / Vercel (frontend) | Free tier, auto-deploy from GitHub |
+| Database Hosting | Railway PostgreSQL | Co-located with backend, low latency |
 
 ---
 
@@ -20,12 +20,12 @@
 - Initialize Node.js project (`npm init`)
 - Install core dependencies: `express`, `prisma`, `dotenv`, `bcrypt`, `jsonwebtoken`
 - Set up PostgreSQL database locally for development
-- Provision **Azure Database for PostgreSQL** for production
+- Provision **Railway PostgreSQL** for production
 - Define Prisma schema (Users, Schedules, Payments, Photos)
 - Run initial database migration (`npx prisma migrate dev`)
-- Set up `.env` file for all secrets (DB connection string, JWT, Azure keys, Stripe)
+- Set up `.env` file for all secrets (DB connection string, JWT, R2 keys, Stripe)
 - Set up project folder structure
-- Create Azure Storage Account and Blob container for photos
+- Local disk storage for photos (development), Cloudflare R2 (production)
 
 ---
 
@@ -100,7 +100,7 @@ App calls GET /api/schedules?userId={id}
 - Reminder email before service starts (30 minutes before via cron job)
 - Notification when service is started
 - Notification when service is completed
-- Tools: `Nodemailer` + `SendGrid` for email delivery
+- Tools: `Nodemailer` + `Mailtrap` (testing) / `SendGrid` (production) for email delivery
 - Scheduler: `node-cron` or `BullMQ` for timed reminders
 
 ---
@@ -109,9 +109,10 @@ App calls GET /api/schedules?userId={id}
 
 - Cleaner uploads "before" photo at job start
 - Cleaner uploads "after" photo at job completion
-- Photos stored in **Azure Blob Storage** (`@azure/storage-blob`)
-- Generate SAS (Shared Access Signature) URL for secure direct uploads from browser
-- Blob URLs saved in the database against the job record
+- **Development:** Photos stored locally in `backend/uploads/` folder
+- **Production:** Photos stored in **Cloudflare R2** (`@aws-sdk/client-s3` — S3-compatible)
+- Generate pre-signed URL for secure direct uploads from browser
+- R2/local URLs saved in the database against the job record
 - Completion email sent to customer with before/after photos embedded in HTML
 
 ---
@@ -140,23 +141,21 @@ App calls GET /api/schedules?userId={id}
 
 ## Phase 8: Data Backups
 
-- **Azure Database for PostgreSQL** provides automated backups by default (7–35 day retention)
-- Enable geo-redundant backup in Azure portal for disaster recovery
-- Store additional manual backups in **Azure Blob Storage** (separate container)
-- Test restore process via Azure portal before going live
+- **Railway PostgreSQL** provides automated daily snapshots (7-day retention)
+- For additional backups, use `pg_dump` and store in Cloudflare R2
+- Test restore process before going live
 
 ---
 
 ## Phase 9: Deployment
 
-- Containerize app with Docker
-- Deploy backend to **Azure App Service** (Node.js runtime, managed SSL, auto-scaling)
-- Deploy frontend (React) to **Azure Static Web Apps** (free tier, CDN included)
-- Use **Azure Database for PostgreSQL** for production DB
-- Use **Azure Blob Storage** for photo storage
-- Store all secrets in **Azure Key Vault** or App Service environment variables — never hardcode
-- Set up custom domain with HTTPS (free managed SSL certificate via Azure)
-- Set up CI/CD pipeline with **GitHub Actions → Azure App Service** (auto-deploy on push to `main`)
+- Deploy backend to **Railway** (Node.js runtime, managed SSL, auto-deploy)
+- Deploy frontend (React) to **Vercel** (free tier, CDN included)
+- Use **Railway PostgreSQL** for production DB
+- Use **Cloudflare R2** for photo storage (local disk for development)
+- Store all secrets in Railway/Vercel environment variables — never hardcode
+- Set up custom domain with HTTPS (free SSL from Railway/Vercel)
+- Set up CI/CD pipeline with **GitHub → Railway/Vercel** (auto-deploy on push to `main`)
 
 ---
 

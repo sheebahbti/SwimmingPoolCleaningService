@@ -17,7 +17,7 @@ Every technology decision below was driven by answers to the [Ask Questions](Ask
 | Budget: $0–$25/month | → | Railway/Render free tiers, not AWS/Azure |
 | Auth: email/password, 3 roles | → | Passport.js + JWT, not Auth0 or Clerk |
 | Payments: yes but can defer | → | Stripe in Phase 9, manual payments for MVP |
-| Files: before/after pool photos | → | S3 / Cloudflare R2 for object storage |
+| Files: before/after pool photos | → | Cloudflare R2 (production), local disk (development) |
 | Scheduling: core feature | → | FullCalendar (React) |
 | Notifications: email + SMS | → | Nodemailer + Twilio |
 | Rate limiting: yes but low traffic | → | express-rate-limit middleware, not Redis-based |
@@ -142,8 +142,48 @@ npm install -D typescript @types/node @types/express @types/cors @types/bcrypt @
 
 ## Notifications: Nodemailer + Twilio
 
-- **Nodemailer** — Free for SMTP-based email. Pair with SendGrid for production deliverability.
+- **Nodemailer** — Free for SMTP-based email. Use **Mailtrap** for testing (catches emails so you verify before customers see them), **SendGrid** for production deliverability.
 - **Twilio** — Industry-standard SMS API for appointment reminders. Excellent Node.js SDK.
+
+---
+
+## File Storage: Cloudflare R2 (Production) / Local Disk (Development)
+
+### Why We Need Object Storage
+
+Before & after pool photos are binary files. Storing images in a database is slow, expensive, and doesn't scale. Object storage is purpose-built for files.
+
+### Storage Options Evaluated
+
+| Option | Free Tier | Egress Fees | Expires? | Our Choice |
+|--------|-----------|-------------|----------|------------|
+| **Cloudflare R2** | 10 GB | **$0** | Never | ✓ Production |
+| **Local disk** | Unlimited | N/A | N/A | ✓ Development |
+| AWS S3 | 5 GB | $0.09/GB | 12 months | ✗ Too expensive |
+| Azure Blob Storage | 5 GB | $0.087/GB | 12 months | ✗ Requires credit card |
+| Google Cloud Storage | 5 GB | $0.12/GB | 90 days | ✗ Short free trial |
+
+### Why Cloudflare R2 for Production
+
+- **$0 egress fees** — Viewing images is free. AWS/Azure charge ~$0.09/GB per download.
+- **Free tier never expires** — 10 GB forever, not a trial
+- **No credit card required** — Start immediately
+- **S3-compatible API** — Same code works with AWS S3 if you switch later
+- **Built-in CDN** — Fast image delivery globally
+- **99.999999999% durability** — Same as AWS S3
+
+### Development Strategy
+
+1. **Local disk first** — Files saved to `backend/uploads/`, zero setup
+2. **Test end-to-end** — Verify upload flow works before adding cloud complexity
+3. **Switch to R2** — Only change storage destination, upload logic stays the same
+
+### npm Package
+
+```bash
+npm install @aws-sdk/client-s3  # Same SDK works for R2 (S3-compatible)
+npm install multer              # For handling file uploads in Express
+```
 
 ---
 

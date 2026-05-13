@@ -4,6 +4,7 @@ import {
   listSchedules,
   getMySchedules,
   getAssignedSchedules,
+  getScheduleById,
   listTechnicians,
   createSchedule,
   updateScheduleStatus,
@@ -26,6 +27,9 @@ router.get('/schedules/assigned', getAssignedSchedules);
 
 // GET /api/schedules — Admin: all schedules
 router.get('/schedules', authorize('ADMIN'), listSchedules);
+
+// GET /api/schedules/:id — Single schedule
+router.get('/schedules/:id', getScheduleById);
 
 // POST /api/schedules — Customer: book appointment
 router.post('/schedules', authorize('CUSTOMER'), createSchedule);

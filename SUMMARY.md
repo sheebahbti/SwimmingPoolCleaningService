@@ -11,6 +11,7 @@
 **What:** Schedule pool cleaning appointments + send email notifications.
 **Who:** Solo developer + AI. Learning project.
 **Stack:** Express (TypeScript) + PostgreSQL + Prisma + React + Nodemailer
+**Storage:** Local disk (dev) → Cloudflare R2 (production)
 **Deploy:** Railway (backend + DB) + Vercel (frontend)
 
 ---
@@ -21,13 +22,13 @@
 |---|---|---|---|
 | 1 | Design database schema (all tables, relationships) | ~1 hr | **Done** — [DatabaseAndAPIDesign.md](DatabaseAndAPIDesign.md) |
 | 2 | Design API endpoints (routes, request/response shapes) | ~1 hr | **Done** — [DatabaseAndAPIDesign.md](DatabaseAndAPIDesign.md) |
-| 3 | Set up backend (Express + TypeScript + Prisma) | ~1 hr | **In progress** |
-| 4 | Create database tables (Prisma migrate) | ~30 min | Not started |
-| 5 | `GET /api/technicians` — list technicians | ~30 min | Not started |
-| 6 | `POST /api/schedules` — create schedule | ~1 hr | Not started |
-| 7 | Email notification on schedule creation (Nodemailer) | ~1 hr | Not started |
-| 8 | Set up frontend (React + TypeScript + Tailwind) | ~30 min | Not started |
-| 9 | Build the form in frontend (React) — pick customer, technician, date → submit | ~1.5 hrs | Not started |
+| 3 | Set up backend (Express + TypeScript + Prisma) | ~1 hr | **Done** |
+| 4 | Create database tables (Prisma migrate) | ~30 min | **Done** |
+| 5 | `GET /api/technicians` — list technicians | ~30 min | **Done** |
+| 6 | `POST /api/schedules` — create schedule | ~1 hr | **Done** |
+| 7 | Email notification on schedule creation (Nodemailer + Mailtrap) | ~1 hr | **Done** — using Mailtrap for testing |
+| 8 | Set up frontend (React + TypeScript + Tailwind) | ~30 min | **Done** |
+| 9 | Build the form in frontend (React) — pick customer, technician, date → submit | ~1.5 hrs | **In progress** |
 | 10 | Deploy backend to Railway, frontend (React) to Vercel | ~1 hr | Not started |
 
 **Total: ~2-3 days**
@@ -36,10 +37,11 @@
 
 ## Skipping For Now
 
-- Login/auth
+- ~~Login/auth~~ ✓ Done
 - View/update/delete schedules
-- Calendar view
-- Payments, photos, SMS
+- Calendar conflict detection
+- Cloud storage (using local disk first, then Cloudflare R2 after end-to-end deployment testing)
+- Payments (Stripe), SMS (Twilio)
 
 ---
 

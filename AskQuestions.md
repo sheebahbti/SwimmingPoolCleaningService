@@ -50,7 +50,7 @@
 | # | Question | Why It Matters | Our Answer |
 |---|---|---|---|
 | 5.1 | What is the **core feature** the app must have on day one? | Defines your MVP scope — build this first, everything else is later | Booking appointments and assigning technicians |
-| 5.2 | Does the app need **scheduling/calendar** functionality? | May need a calendar library (FullCalendar) and conflict detection logic | Yes — core feature |
+| 5.2 | Does the app need **scheduling/calendar** functionality? | May need a calendar library (FullCalendar) and conflict detection logic | Yes — core feature (conflict detection skipped for MVP) |
 | 5.3 | Does the app need **email or SMS notifications**? | Requires third-party services (SendGrid, Twilio) and async processing | Yes — appointment confirmations and reminders |
 | 5.4 | Does the app need **payment processing**? | Requires Stripe/PayPal integration, webhook handling, invoice generation | Yes — but can launch with manual payments first |
 | 5.5 | Does the app need **offline support**? | Requires PWA with service workers, local storage, sync logic | Nice-to-have for technicians in the field (Phase 10) |

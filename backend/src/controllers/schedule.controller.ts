@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { sendAppointmentConfirmation } from '../lib/email';
 
 const scheduleInclude = {
   customer: { select: { id: true, name: true, email: true } },
@@ -52,6 +53,25 @@ export async function getAssignedSchedules(req: Request, res: Response) {
     res.json(schedules);
   } catch {
     res.status(500).json({ error: 'Failed to fetch schedules' });
+  }
+}
+
+// GET /api/schedules/:id — Single schedule by ID
+export async function getScheduleById(req: Request, res: Response) {
+  try {
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: Number(req.params.id) },
+      include: scheduleInclude,
+    });
+
+    if (!schedule) {
+      res.status(404).json({ error: 'Schedule not found' });
+      return;
+    }
+
+    res.json(schedule);
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch schedule' });
   }
 }
 
@@ -132,6 +152,15 @@ export async function createSchedule(req: Request, res: Response) {
       },
       include: scheduleInclude,
     });
+
+    // Send confirmation email (non-blocking)
+    sendAppointmentConfirmation(
+      schedule.customer.email,
+      schedule.customer.name,
+      schedule.technician.name,
+      schedule.date,
+      schedule.pool.address
+    );
 
     res.status(201).json(schedule);
   } catch {
