@@ -28,6 +28,24 @@ export async function createMaintenanceRecord(req: Request, res: Response): Prom
       data: { status: 'COMPLETED' },
     });
 
+    // Auto-generate invoice (default $150, due in 14 days)
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14);
+
+    try {
+      await prisma.invoice.create({
+        data: {
+          scheduleId,
+          amount: 150.00,
+          dueDate,
+        },
+      });
+      console.log(`Invoice auto-created for schedule ${scheduleId}`);
+    } catch {
+      // Invoice may already exist — not critical
+      console.warn(`Could not auto-create invoice for schedule ${scheduleId}`);
+    }
+
     res.status(201).json(record);
   } catch (error: any) {
     if (error.code === 'P2002') {

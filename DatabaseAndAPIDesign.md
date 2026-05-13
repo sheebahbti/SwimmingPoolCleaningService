@@ -70,6 +70,7 @@
 | status | Enum | PENDING, PAID, OVERDUE |
 | dueDate | DateTime | |
 | paidAt | DateTime? | Null until paid |
+| stripePaymentIntentId | String? | Stripe PaymentIntent ID (set on payment) |
 
 ---
 
@@ -169,13 +170,28 @@ Schedules           ──1:1────→  Invoices
 5. Frontend: <img src={url}> → express.static serves file from disk
 ```
 
-### Invoices (later)
+### Invoices
 
 | Method | Route | What It Does |
 |--------|-------|--------------|
-| POST | `/api/invoices` | Generate invoice for completed service |
-| GET | `/api/invoices?customerId=1` | Customer's invoices |
-| PUT | `/api/invoices/:id/pay` | Mark as paid |
+| GET | `/api/invoices` | List invoices (admin: all, customer: own) |
+| GET | `/api/invoices/:id` | Get single invoice with schedule details |
+| GET | `/api/invoices/:id/pdf` | Download invoice as PDF |
+| POST | `/api/invoices` | Create invoice (admin only) |
+| POST | `/api/invoices/:id/pay` | Initiate Stripe payment (customer) |
+| POST | `/api/invoices/:id/confirm` | Confirm payment after Stripe (customer) |
+| PATCH | `/api/invoices/:id/status` | Update invoice status (admin) |
+
+**Auto-generation:** When a technician creates a maintenance record, the system auto-generates an invoice ($150 default, 14-day due date) and marks the schedule COMPLETED.
+
+**Payment flow:**
+```
+1. Customer clicks "Pay" → POST /api/invoices/:id/pay
+2. Backend creates Stripe PaymentIntent → returns clientSecret
+3. Frontend uses Stripe.js to confirm payment with card details
+4. Customer confirms → POST /api/invoices/:id/confirm
+5. Backend verifies PaymentIntent status → marks invoice PAID
+```
 
 ---
 

@@ -1048,3 +1048,140 @@ The database row is tiny (a few hundred bytes). The image (65 KB) lives on disk.
 - **Limit file size** — Set max size (e.g., 5 MB) to prevent abuse
 - **Random filenames** — Multer generates random names by default, preventing path traversal attacks
 - **Don't trust the extension** — Check the file's actual MIME type, not just the extension
+
+---
+
+## Stripe Payments (Phase 9)
+
+### What is Stripe?
+
+Stripe is a payment processing platform. Instead of handling credit card numbers yourself (which requires PCI compliance — expensive and complex), Stripe handles all the sensitive card data. Your server never sees the card number.
+
+### PaymentIntent Flow
+
+Stripe uses a two-step "PaymentIntent" pattern:
+
+```
+1. Customer clicks "Pay" on the frontend
+2. Frontend calls YOUR backend: POST /api/invoices/:id/pay
+3. Your backend calls Stripe API: stripe.paymentIntents.create({amount, currency})
+4. Stripe returns a "clientSecret" — a one-time token
+5. Your backend sends clientSecret to frontend
+6. Frontend uses Stripe.js (their JavaScript SDK) to collect card details
+   → Card number goes DIRECTLY to Stripe (never touches your server)
+7. Stripe processes the payment
+8. Frontend calls YOUR backend: POST /api/invoices/:id/confirm
+9. Your backend calls Stripe: stripe.paymentIntents.retrieve(id)
+10. If status === 'succeeded', mark invoice as PAID
+```
+
+**Why two steps?** Security. Your server creates the *intent* to charge, but the actual card data goes directly from the browser to Stripe. You never handle sensitive payment data.
+
+### Key Stripe Concepts
+
+| Concept | What It Means |
+|---|---|
+| **PaymentIntent** | Represents a single payment attempt. Has states: `requires_payment_method` → `succeeded` |
+| **clientSecret** | One-time token sent to frontend so Stripe.js can confirm the payment |
+| **Amount** | Always in **cents** (smallest currency unit). $150.00 = `15000` |
+| **Idempotency** | Stripe deduplicates requests — if you accidentally call create twice with the same key, you get the same PaymentIntent back |
+| **Test mode** | Use test API keys (start with `sk_test_`) — no real charges. Test card: `4242 4242 4242 4242` |
+
+### Setting Up Stripe
+
+```bash
+npm install stripe          # Backend SDK
+```
+
+```typescript
+// backend/src/lib/stripe.ts
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+// Create a payment intent (amount in dollars, converted to cents)
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: Math.round(amountInDollars * 100),  // $150 → 15000 cents
+  currency: 'usd',
+  metadata: { invoiceId: '42' },              // your reference
+});
+
+// Returns: { id: 'pi_xxx', client_secret: 'pi_xxx_secret_yyy' }
+```
+
+### Graceful Degradation
+
+Our Stripe service (`backend/src/lib/stripe.ts`) doesn't crash if `STRIPE_SECRET_KEY` is missing — it returns an error message instead. This way the rest of the app works fine without Stripe configured (useful for development/testing).
+
+---
+
+## PDF Generation with PDFKit (Phase 9)
+
+### What is PDFKit?
+
+PDFKit is a Node.js library that creates PDF documents programmatically. You write code that says "put this text here, draw a line there, add a table" — and it generates a PDF file as a Buffer (raw bytes).
+
+### How We Use It
+
+```typescript
+// backend/src/lib/pdf.ts
+import PDFDocument from 'pdfkit';
+
+function generateInvoicePDF(data): Promise<Buffer> {
+  return new Promise((resolve) => {
+    const doc = new PDFDocument();
+    const chunks: Buffer[] = [];
+
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+    // Add content
+    doc.fontSize(20).text('INVOICE', { align: 'right' });
+    doc.text(`#INV-${data.invoiceNumber}`);
+    doc.text(`Amount: $${data.amount}`);
+    // ... more content
+
+    doc.end();  // Finalize the PDF
+  });
+}
+```
+
+### Key Concepts
+
+| Concept | What It Means |
+|---|---|
+| **Buffer** | Raw binary data in memory. The PDF is generated as a Buffer, then sent as an HTTP response |
+| **Streaming** | PDFKit emits data in chunks (events). We collect chunks and concatenate them |
+| **Content-Type** | Set `res.setHeader('Content-Type', 'application/pdf')` so the browser knows it's a PDF |
+| **Content-Disposition** | `attachment; filename="invoice.pdf"` tells the browser to download instead of display inline |
+
+### Serving the PDF
+
+```typescript
+// In the controller
+const pdfBuffer = await generateInvoicePDF(invoiceData);
+res.setHeader('Content-Type', 'application/pdf');
+res.setHeader('Content-Disposition', `attachment; filename="INV-0001.pdf"`);
+res.send(pdfBuffer);
+```
+
+The browser receives the raw PDF bytes and either displays it in a viewer or downloads it.
+
+---
+
+## Auto-Generated Invoices (Phase 9)
+
+When a technician logs a maintenance record, the system automatically:
+
+1. Creates the MaintenanceRecord in the database
+2. Marks the Schedule status as `COMPLETED`
+3. Creates an Invoice: $150 default amount, due date = 14 days from now, status = `PENDING`
+
+This happens in `maintenance.controller.ts` inside a single database transaction — either all three operations succeed or none do.
+
+### Overdue Invoice Detection
+
+A cron job runs daily at 9:00 AM:
+1. Finds all invoices with status `PENDING` and `dueDate < now`
+2. Updates their status to `OVERDUE`
+3. Sends a styled email reminder to each customer with the invoice details

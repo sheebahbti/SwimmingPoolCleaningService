@@ -10,6 +10,8 @@ import poolRoutes from './routes/pool.routes';
 import scheduleRoutes from './routes/schedule.routes';
 import uploadRoutes from './routes/upload.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
+import invoiceRoutes from './routes/invoice.routes';
+import { startCronJobs } from './lib/scheduler';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,9 +35,11 @@ app.use('/api', poolRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', maintenanceRoutes);
+app.use('/api', invoiceRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  startCronJobs();
 });
 
 export default app;

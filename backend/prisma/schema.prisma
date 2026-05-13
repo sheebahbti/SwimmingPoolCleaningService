@@ -89,12 +89,13 @@ model MaintenanceRecord {
 }
 
 model Invoice {
-  id         Int           @id @default(autoincrement())
-  scheduleId Int           @unique
-  amount     Decimal
-  status     InvoiceStatus @default(PENDING)
-  dueDate    DateTime
-  paidAt     DateTime?
+  id                    Int           @id @default(autoincrement())
+  scheduleId            Int           @unique
+  amount                Decimal
+  status                InvoiceStatus @default(PENDING)
+  dueDate               DateTime
+  paidAt                DateTime?
+  stripePaymentIntentId String?
 
   // Relations
   schedule Schedule @relation(fields: [scheduleId], references: [id])

@@ -28,6 +28,11 @@
        ┌────────▼────────┐
        │   App Server    │  ← Node.js + Express (TypeScript)
        │   (Railway)     │    Single instance, stateless
+       │                 │
+       │  ┌───────────┐  │
+       │  │ node-cron │  │  ← Scheduled tasks running inside the server
+       │  │ scheduler │  │    (reminders, daily summaries, re-engagement)
+       │  └───────────┘  │
        └────────┬────────┘
                 │
      ┌──────────┼──────────┬─────────────┬───────────┐
@@ -40,6 +45,12 @@
 
 *  Local disk for development, Cloudflare R2 for production
 ** Mailtrap for testing (catches emails), SendGrid for production
+
+Cron schedule:
+  6:00 AM daily   → Technician daily schedule summary
+  8:00 AM daily   → 24-hour appointment reminders to customers
+  9:00 AM daily   → Mark overdue invoices + send payment reminders
+  9:00 AM Mondays → Re-engagement emails to inactive customers
 ```
 
 **Why this is enough:**

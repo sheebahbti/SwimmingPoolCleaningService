@@ -96,22 +96,43 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 
 ---
 
-## Phase 8 — Notifications & Reminders
+## Phase 8 — Notifications & Reminders ✅
 
-- Automated 24-hour appointment reminders (email + optional SMS via Twilio)
-- Technician daily schedule summary email
-- Re-engagement emails for customers with no appointment in 30+ days
+- ✅ Automated 24-hour appointment reminders (email via Nodemailer)
+- ✅ Technician daily schedule summary email
+- ✅ Re-engagement emails for customers with no appointment in 30+ days
+- All jobs run via `node-cron` scheduler (`backend/src/lib/scheduler.ts`)
+- SMS via Twilio — deferred to later
+
+| Cron Job | Schedule | What It Does |
+|---|---|---|
+| Daily summary | 6:00 AM daily | Sends each technician their day's jobs |
+| Appointment reminders | 8:00 AM daily | Emails customers with appointments tomorrow |
+| Overdue invoices | 9:00 AM daily | Marks past-due invoices OVERDUE + sends payment reminders |
+| Re-engagement | 9:00 AM Mondays | Emails customers inactive 30+ days |
 
 **Why Phase 8:** Requires the scheduling and customer modules to be stable before automating on top of them.
 
 ---
 
-## Phase 9 — Invoicing & Payments
+## Phase 9 — Invoicing & Payments ✅
 
-- Generate invoices on appointment completion
-- Stripe integration for online payment (credit card, ACH)
-- Invoice PDF generation (via PDFKit or similar)
-- Payment status tracking; overdue reminders
+- ✅ Auto-generate invoice ($150, 14-day due) when maintenance record is created and schedule marked COMPLETED
+- ✅ Stripe integration for online payment (PaymentIntent flow)
+- ✅ Invoice PDF generation via PDFKit (styled with header, service table, totals)
+- ✅ Payment status tracking (PENDING → PAID / OVERDUE)
+- ✅ Overdue invoice auto-detection and email reminders (daily 9 AM cron)
+- ✅ Frontend InvoicesPage — summary cards, filterable table, PDF download, admin "Mark Paid"
+- ✅ Role-based access: Admin sees all invoices, Customer sees own invoices
+
+| Component | File | What It Does |
+|---|---|---|
+| Controller | `backend/src/controllers/invoice.controller.ts` | CRUD + pay + confirm + PDF download |
+| Routes | `backend/src/routes/invoice.routes.ts` | 7 endpoints (GET, POST, PATCH) |
+| Stripe service | `backend/src/lib/stripe.ts` | PaymentIntent create + verify |
+| PDF service | `backend/src/lib/pdf.ts` | Generates styled invoice PDF |
+| Scheduler | `backend/src/lib/scheduler.ts` | Marks overdue + sends reminders |
+| Frontend | `frontend/src/pages/InvoicesPage.tsx` | Invoice list with filters + actions |
 
 **Why Phase 9:** Revenue-critical but can be done manually (cash/check) initially while earlier phases are validated.
 

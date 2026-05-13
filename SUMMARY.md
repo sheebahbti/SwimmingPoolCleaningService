@@ -28,8 +28,11 @@
 | 6 | `POST /api/schedules` — create schedule | ~1 hr | **Done** |
 | 7 | Email notification on schedule creation (Nodemailer + Mailtrap) | ~1 hr | **Done** — using Mailtrap for testing |
 | 8 | Set up frontend (React + TypeScript + Tailwind) | ~30 min | **Done** |
-| 9 | Build the form in frontend (React) — pick customer, technician, date → submit | ~1.5 hrs | **In progress** |
-| 10 | Deploy backend to Railway, frontend (React) to Vercel | ~1 hr | Not started |
+| 9 | Build the form in frontend (React) — pick customer, technician, date → submit | ~1.5 hrs | **Done** |
+| 10 | Photo uploads + maintenance records (Phase 7) | ~2 hrs | **Done** |
+| 11 | Automated email reminders + daily summaries (Phase 8) | ~1 hr | **Done** |
+| 12 | Invoicing + Stripe payments + PDF generation (Phase 9) | ~2 hrs | **Done** |
+| 13 | Deploy backend to Railway, frontend (React) to Vercel | ~1 hr | Not started |
 
 **Total: ~2-3 days**
 
@@ -38,10 +41,12 @@
 ## Skipping For Now
 
 - ~~Login/auth~~ ✓ Done
-- View/update/delete schedules
+- ~~View/update/delete schedules~~ ✓ Done
+- ~~Photo uploads~~ ✓ Done (local disk)
+- ~~Payments (Stripe)~~ ✓ Done (PaymentIntent flow + PDF invoices)
 - Calendar conflict detection
 - Cloud storage (using local disk first, then Cloudflare R2 after end-to-end deployment testing)
-- Payments (Stripe), SMS (Twilio)
+- SMS (Twilio)
 
 ---
 

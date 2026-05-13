@@ -24,6 +24,9 @@ export default function Layout() {
           {user?.role === 'CUSTOMER' && (
             <Link to="/pools" className="text-sm hover:text-blue-200 transition">My Pools</Link>
           )}
+          {(user?.role === 'ADMIN' || user?.role === 'CUSTOMER') && (
+            <Link to="/invoices" className="text-sm hover:text-blue-200 transition">Invoices</Link>
+          )}
           {user?.role === 'ADMIN' && (
             <>
               <Link to="/users" className="text-sm hover:text-blue-200 transition">Users</Link>
