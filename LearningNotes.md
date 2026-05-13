@@ -1185,3 +1185,89 @@ A cron job runs daily at 9:00 AM:
 1. Finds all invoices with status `PENDING` and `dueDate < now`
 2. Updates their status to `OVERDUE`
 3. Sends a styled email reminder to each customer with the invoice details
+
+---
+
+## Deployment: Local vs Production (Phase 11)
+
+### What "localhost" means
+
+When you run `npm run dev`, your app only exists on your own laptop. `localhost` literally means "this computer". Nobody else can reach `http://localhost:3000` — it's not on the internet.
+
+### What deployment does
+
+Deployment copies your code to a computer in the cloud that:
+- Runs 24/7 (even when your laptop is off)
+- Has a real public URL (e.g. `https://yourapp.up.railway.app`)
+- Anyone in the world can access
+
+### Why we use two services (Railway + Vercel)
+
+```
+Railway                              Vercel
+───────────────────────────────      ──────────────────────────────
+Runs: Node.js Express backend        Runs: React frontend (static files)
+Runs: PostgreSQL database            Auto-deploys on git push
+Always-on server process             Serves files from global CDN
+Cost: ~$0–10/month                   Cost: $0 (free tier)
+```
+
+They're separate because:
+- **Backend** needs a persistent server process (Express keeps running, cron jobs fire, DB connections stay open)
+- **Frontend** is just HTML/CSS/JS files — no server needed, just a CDN to serve them fast
+
+### How TypeScript runs in production (vs development)
+
+| Mode | How TypeScript runs |
+|---|---|
+| **Development** | `ts-node src/index.ts` — runs TypeScript directly (slow start, no compilation step) |
+| **Production** | `tsc` compiles to JavaScript → `node dist/index.js` runs the compiled JS (faster, proper for servers) |
+
+Railway runs `npm run build` (which runs `prisma generate && tsc`) then `npm start` (which runs `node dist/index.js`).
+
+### What VITE_API_URL does
+
+In development, Vite's **proxy** forwards `/api` requests from the frontend to `localhost:3000`:
+```
+Browser → GET /api/invoices
+Vite dev server intercepts → forwards to http://localhost:3000/api/invoices
+```
+
+In production, this proxy doesn't exist — the frontend is on Vercel, not running with Vite.
+So we use an environment variable:
+```
+VITE_API_URL=https://your-app.up.railway.app/api
+```
+The `axios` client uses this as its base URL instead.
+
+Variables prefixed with `VITE_` are **baked into the frontend bundle at build time** by Vite. They are NOT secret — they end up in the JavaScript that browsers download. Never put passwords in `VITE_` variables.
+
+### What FRONTEND_URL does on the backend
+
+CORS (Cross-Origin Resource Sharing) is a browser security rule: if the frontend is on `vercel.app` and tries to call an API on `railway.app`, the browser blocks it — **unless** the API says "I allow requests from vercel.app".
+
+```typescript
+app.use(cors({
+  origin: process.env.FRONTEND_URL,  // "https://yourapp.vercel.app"
+}));
+```
+
+In development `FRONTEND_URL=http://localhost:5173`. In production it's the Vercel URL.
+
+### Environment variables: dev vs production
+
+| Variable | Development (.env) | Production (Railway dashboard) |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://localhost:5432/...` | Railway auto-sets this |
+| `JWT_SECRET` | any string | long random secret |
+| `FRONTEND_URL` | `http://localhost:5173` | `https://yourapp.vercel.app` |
+| `STRIPE_SECRET_KEY` | test key (`sk_test_...`) | live key (`sk_live_...`) |
+| `SMTP_*` | Mailtrap (catches emails) | SendGrid (sends real emails) |
+
+### Why Railway's filesystem is ephemeral
+
+Railway servers can restart, redeploy, or move to different hardware at any time. When that happens, **any files written to disk are lost**. This means:
+- `backend/uploads/` (photo storage) **does not work** on Railway
+- Solution: use **Cloudflare R2** (cloud object storage) — files stored there persist forever
+
+This is a known trade-off with cloud platforms. The database persists (it's a separate managed service), but the local filesystem is temporary.

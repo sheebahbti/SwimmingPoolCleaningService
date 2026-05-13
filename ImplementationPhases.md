@@ -150,18 +150,81 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 
 ## Phase 11 — Deployment & Go-Live
 
-- Configure production environments on Railway/Render (backend + PostgreSQL) and Vercel (frontend)
-- Set up environment variables, secrets management, and production database
-- Configure custom domain, SSL certificates, and DNS
-- Set up CI/CD pipeline via GitHub Actions (automated build → test → deploy on merge to main)
-- Database backup strategy and disaster recovery plan
-- Application monitoring and logging (e.g., Sentry for errors, LogTail/Datadog for logs)
-- Performance testing and load testing before launch
-- Staging environment for pre-production validation
-- Create runbooks for common operational tasks (rollback, DB restore, scaling)
-- Go-live checklist and launch
+### What "deployment" means
 
-**Why Phase 11:** Deployment is the final gate. All features should be stable and tested before pushing to production. A proper deployment phase ensures reliability, observability, and a smooth launch.
+Right now your app only runs on your laptop — only you can access it at `localhost`.
+Deployment puts the code on computers in the cloud that run 24/7, reachable by anyone via a URL.
+
+```
+Before deployment (local only):
+  Your laptop → backend (port 3000) + frontend (port 5174) + PostgreSQL
+
+After deployment (live on the internet):
+  Railway (cloud) → Express backend + PostgreSQL database → public URL
+  Vercel  (cloud) → React frontend → public URL
+  Anyone in the world can use the app
+```
+
+### Why two separate services?
+
+| Service | What it runs | Why that service |
+|---|---|---|
+| **Railway** | Node.js backend + PostgreSQL | Designed for servers — always-on, runs Node.js + databases |
+| **Vercel** | React frontend (static files) | Designed for frontends — free, global CDN, auto-deploys on git push |
+
+### Step-by-step: Deploy backend to Railway
+
+1. Go to **railway.app** → **New Project** → **Deploy from GitHub repo**
+2. Select `SwimmingPoolCleaningService`
+3. Railway creates a service → click it → **Settings** → set **Root Directory** to `backend`
+4. Railway runs `npm run build` (compiles TypeScript → JavaScript) then `npm start`
+5. In the same project: **+ New** → **Database** → **PostgreSQL** → Railway auto-sets `DATABASE_URL`
+6. Go to backend service → **Variables** tab → add:
+   - `JWT_SECRET` — any long random string
+   - `FRONTEND_URL` — `*` for now (update after Vercel deploy)
+   - `SMTP_*` — your Mailtrap credentials (or skip)
+7. Railway gives you a public URL like `https://your-app.up.railway.app`
+8. Run migrations: Railway terminal → `npx prisma migrate deploy`
+9. Seed the database with test users (run seed script or create manually)
+
+### Step-by-step: Deploy frontend to Vercel
+
+1. Go to **vercel.com** → **New Project** → Import `SwimmingPoolCleaningService`
+2. Set **Root Directory** to `frontend`
+3. Add environment variable: `VITE_API_URL` = `https://your-app.up.railway.app/api`
+4. Deploy — Vercel runs `npm run build` and hosts the static files
+5. Vercel gives you a URL like `https://your-app.vercel.app`
+6. Go back to Railway → update `FRONTEND_URL` to your Vercel URL (replaces `*`)
+
+### What changes between dev and production
+
+| Thing | Development (local) | Production (deployed) |
+|---|---|---|
+| Backend URL | `http://localhost:3000` | `https://your-app.up.railway.app` |
+| Frontend URL | `http://localhost:5174` | `https://your-app.vercel.app` |
+| API calls | Vite proxy (`/api` → port 3000) | `VITE_API_URL` env variable |
+| Database | Local PostgreSQL | Railway PostgreSQL (starts empty) |
+| File uploads | `backend/uploads/` on your disk | Need Cloudflare R2 (Railway disk is ephemeral) |
+| TypeScript | Runs directly via ts-node | Compiled to JS first (`tsc`), then `node dist/index.js` |
+
+### Code changes made for production
+
+- `backend/src/index.ts` — CORS now reads `FRONTEND_URL` env var (not `*`)
+- `frontend/src/lib/api.ts` — API base URL reads `VITE_API_URL` env var
+- `backend/package.json` — build script runs `prisma generate` before `tsc`
+
+### Remaining tasks
+
+- Configure production environments on Railway (backend + PostgreSQL) and Vercel (frontend)
+- Set environment variables in Railway and Vercel dashboards
+- Run `prisma migrate deploy` on production database
+- Seed production database with initial admin account
+- Switch file uploads to Cloudflare R2 (local disk doesn't persist on Railway)
+- Update CORS to Vercel domain (replace `*`)
+- Set up CI/CD: auto-deploy on every `git push` to main (both Railway and Vercel do this automatically)
+- Application monitoring: Sentry (errors), Railway metrics (CPU/memory)
+
+**Why Phase 11:** Deployment is the final gate. All features should be stable and tested before pushing to production.
 
 ---
 
