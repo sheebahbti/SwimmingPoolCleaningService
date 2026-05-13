@@ -138,13 +138,13 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 
 ---
 
-## Phase 10 — Mobile / Field Technician PWA
+## Phase 10 — Mobile / Field Technician PWA ⏭️ Deferred
 
 - Progressive Web App view optimized for phones
 - Technicians can: view their daily route, mark appointments in progress/complete, log maintenance records from the job site
 - Offline-capable with service worker caching
 
-**Why Phase 10:** Nice-to-have for field operations; all data structures are already in place by this point, so it's mostly a UI layer.
+**Why deferred:** The app already works in a mobile browser. Deploy first (Phase 11), gather real feedback from technicians in the field, then add PWA polish based on actual usage.
 
 ---
 
