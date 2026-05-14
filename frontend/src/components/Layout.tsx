@@ -1,6 +1,18 @@
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate, Outlet } from 'react-router-dom';
 
+const roleBadgeStyles: Record<string, string> = {
+  ADMIN: 'bg-red-500 text-white',
+  TECHNICIAN: 'bg-green-500 text-white',
+  CUSTOMER: 'bg-purple-500 text-white',
+};
+
+const roleLabels: Record<string, string> = {
+  ADMIN: '👑 Admin View',
+  TECHNICIAN: '🔧 Technician View',
+  CUSTOMER: '👤 Customer View',
+};
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -10,12 +22,20 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const badgeStyle = user?.role ? roleBadgeStyles[user.role] : 'bg-gray-500';
+  const roleLabel = user?.role ? roleLabels[user.role] : user?.role;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-blue-700 text-white px-6 py-4 flex justify-between items-center shadow">
-        <Link to="/" className="text-xl font-bold hover:text-blue-200 transition">
-          Pool Cleaning Service
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="text-xl font-bold hover:text-blue-200 transition">
+            Pool Cleaning Service
+          </Link>
+          <span className={`text-sm font-semibold px-3 py-1 rounded-full ${badgeStyle}`}>
+            {roleLabel}
+          </span>
+        </div>
         <div className="flex items-center gap-6">
           <Link to="/" className="text-sm hover:text-blue-200 transition">Dashboard</Link>
           <Link to="/schedules" className="text-sm hover:text-blue-200 transition">
@@ -34,7 +54,7 @@ export default function Layout() {
             </>
           )}
           <Link to="/profile" className="text-sm hover:text-blue-200 transition">Profile</Link>
-          <span className="text-xs bg-blue-800 px-2 py-1 rounded">{user?.role}</span>
+          <span className="text-xs text-blue-200">{user?.name}</span>
           <button
             onClick={handleLogout}
             className="bg-blue-800 px-3 py-1 rounded text-sm hover:bg-blue-900 transition"
