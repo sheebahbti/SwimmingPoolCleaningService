@@ -61,7 +61,8 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
-  app.get('*', (_req, res) => {
+  // SPA fallback: serve index.html for any unmatched route
+  app.use((_req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 }

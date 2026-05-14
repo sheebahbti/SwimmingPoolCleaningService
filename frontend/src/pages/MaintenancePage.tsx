@@ -40,10 +40,7 @@ export default function MaintenancePage() {
       return;
     }
     setFile(file);
-    setPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+    setPreview(URL.createObjectURL(file));
     setError('');
   };
 
