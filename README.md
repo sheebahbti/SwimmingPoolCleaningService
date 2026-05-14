@@ -2,9 +2,23 @@
 
 A full-stack scheduling and business management platform for a local pool cleaning company in Dallas, TX. Built to solve real operational problems: appointment booking, technician dispatch, maintenance tracking, photo documentation, invoicing, and automated customer communications.
 
-> **Live Demo:** [https://your-app.up.render.app](https://your-app.up.render.app) *(update with your Render URL)*
->
-> **Demo Video:** [Watch the full walkthrough](#) *(add link after recording)*
+---
+
+## 🚀 Live Demo
+
+**URL:** https://poolservice.onrender.com
+
+### Test Accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | admin@example.com | password123 |
+| **Technician** | bob@example.com | password123 |
+| **Customer** | alice@example.com | password123 |
+
+> **Note:** First load may take 30-60 seconds (free tier cold start).
+
+---
 
 ## Why This Project
 
