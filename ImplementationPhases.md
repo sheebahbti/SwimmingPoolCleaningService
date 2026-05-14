@@ -233,13 +233,236 @@ Express serves both the API and the React frontend from one server:
 
 ---
 
+## Phase 12 — Testing & Quality Assurance
+
+### Testing Strategy
+
+A comprehensive testing strategy ensures code quality, catches regressions, and builds confidence for production deployments.
+
+```
+Testing Pyramid:
+                    ┌─────────────┐
+                    │    E2E      │  ← Playwright (critical user flows)
+                    │   Tests     │     Slowest, most realistic
+                    └──────┬──────┘
+                   ┌───────┴───────┐
+                   │  Integration  │  ← Supertest (API endpoints)
+                   │    Tests      │     Test API + database together
+                   └───────┬───────┘
+          ┌────────────────┴────────────────┐
+          │          Unit Tests             │  ← Jest + React Testing Library
+          │  (functions, components, utils) │     Fastest, most granular
+          └─────────────────────────────────┘
+```
+
+### Testing Tools & Technologies
+
+| Tool | Purpose | Why This Tool |
+|---|---|---|
+| **Jest** | Unit test runner | De facto standard for JS/TS, fast, built-in mocking, snapshot testing |
+| **Supertest** | API integration tests | HTTP assertions for Express, works with Jest, test without running server |
+| **React Testing Library** | Component tests | Tests user behavior not implementation, encourages accessible code |
+| **Playwright** | E2E browser tests | Cross-browser, auto-wait, network mocking, visual regression, faster than Cypress |
+| **MSW (Mock Service Worker)** | API mocking | Intercepts network requests in tests, same mocks work in browser and Node |
+| **Faker.js** | Test data generation | Realistic fake data for users, emails, addresses, dates |
+| **nyc / c8** | Code coverage | Track which lines are tested, enforce coverage thresholds |
+
+### Backend Tests
+
+#### Unit Tests (Jest)
+- **Controllers:** Test business logic with mocked Prisma client
+- **Services:** Test utility functions (email formatting, PDF generation, Stripe helpers)
+- **Middleware:** Test auth middleware with mocked JWT verification
+- **Validators:** Test input validation and error handling
+
+```typescript
+// Example: backend/src/controllers/__tests__/auth.controller.test.ts
+describe('AuthController', () => {
+  describe('login', () => {
+    it('returns 401 for invalid credentials', async () => { ... });
+    it('returns JWT token for valid credentials', async () => { ... });
+    it('returns 400 when email is missing', async () => { ... });
+  });
+});
+```
+
+#### Integration Tests (Supertest + Jest)
+- **API Endpoints:** Test full request/response cycle with test database
+- **Authentication flows:** Register → Login → Access protected routes
+- **Business workflows:** Create user → Add pool → Book appointment → Complete → Invoice
+
+```typescript
+// Example: backend/src/routes/__tests__/pool.routes.test.ts
+describe('GET /api/pools', () => {
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/api/pools');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns customer pools when authenticated', async () => {
+    const res = await request(app)
+      .get('/api/pools')
+      .set('Authorization', `Bearer ${customerToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+});
+```
+
+### Frontend Tests
+
+#### Component Tests (React Testing Library)
+- **Forms:** Test validation, submission, error display
+- **Lists:** Test filtering, sorting, pagination
+- **Auth:** Test login/logout flows, protected route redirects
+- **Modals:** Test open/close, form submission, cancel
+
+```typescript
+// Example: frontend/src/pages/__tests__/LoginPage.test.tsx
+describe('LoginPage', () => {
+  it('shows error message for invalid credentials', async () => {
+    render(<LoginPage />);
+    await userEvent.type(screen.getByLabelText(/email/i), 'bad@email.com');
+    await userEvent.type(screen.getByLabelText(/password/i), 'wrong');
+    await userEvent.click(screen.getByRole('button', { name: /login/i }));
+    expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();
+  });
+});
+```
+
+#### E2E Tests (Playwright)
+- **Critical user journeys:**
+  - Customer: Register → Add Pool → Book Appointment → View Invoice → Pay
+  - Technician: Login → View Schedule → Start Job → Upload Photos → Complete
+  - Admin: Login → Create Technician → Assign Job → Generate Invoice → Mark Paid
+
+```typescript
+// Example: e2e/booking-flow.spec.ts
+test('customer can book an appointment', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('[name="email"]', 'alice@example.com');
+  await page.fill('[name="password"]', 'password123');
+  await page.click('button[type="submit"]');
+  
+  await page.goto('/booking');
+  await page.click('text=Schedule Service');
+  await page.selectOption('[name="poolId"]', { label: 'Main Pool' });
+  await page.click('.fc-future'); // Click a future date
+  await page.click('text=Confirm Booking');
+  
+  await expect(page.locator('text=Appointment confirmed')).toBeVisible();
+});
+```
+
+### Test Configuration Files
+
+| File | Purpose |
+|---|---|
+| `backend/jest.config.js` | Backend Jest configuration |
+| `backend/jest.setup.ts` | Test database setup, global mocks |
+| `frontend/vitest.config.ts` | Frontend Vitest configuration (faster than Jest for Vite) |
+| `frontend/src/test/setup.ts` | Testing Library setup, MSW handlers |
+| `playwright.config.ts` | E2E test configuration, browsers, base URL |
+| `.github/workflows/test.yml` | CI pipeline: lint → unit → integration → E2E |
+
+### Test Database Strategy
+
+```
+Development DB   →  Your local PostgreSQL (persistent data)
+Test DB          →  Separate local DB or in-memory (wiped between test runs)
+CI/CD Test DB    →  GitHub Actions service container (PostgreSQL)
+```
+
+- Use `DATABASE_URL_TEST` env var for test database
+- Run `prisma migrate reset` before each test suite to ensure clean state
+- Use transactions with rollback for faster integration tests
+
+### Code Coverage Targets
+
+| Coverage Type | Target | Rationale |
+|---|---|---|
+| **Statements** | 80% | High enough to catch most issues, not so high it becomes a burden |
+| **Branches** | 75% | Ensure conditional logic is tested |
+| **Functions** | 85% | All public functions should have tests |
+| **Lines** | 80% | Match statement coverage |
+
+### CI/CD Integration
+
+```yaml
+# .github/workflows/test.yml
+name: Test Suite
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+
+      - name: Run backend tests
+        run: cd backend && npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run frontend tests
+        run: cd frontend && npm test
+
+      - name: Run E2E tests
+        run: npx playwright test
+```
+
+### What to Test vs. What to Skip
+
+| Test | Skip |
+|---|---|
+| ✅ Business logic (invoice calculation, role permissions) | ❌ Prisma-generated code |
+| ✅ API contracts (request/response shapes) | ❌ Third-party libraries (Stripe SDK internals) |
+| ✅ User interactions (forms, navigation) | ❌ CSS styling (use visual regression for critical UI) |
+| ✅ Error handling (invalid inputs, network failures) | ❌ Framework boilerplate (React internals) |
+| ✅ Authentication & authorization | ❌ Obvious getters/setters |
+
+### Timeline for Testing Phase
+
+| Task | Duration | Dependencies |
+|---|---|---|
+| Set up Jest + Supertest (backend) | 1 day | None |
+| Set up Vitest + RTL (frontend) | 1 day | None |
+| Write unit tests (controllers, utils) | 3 days | Jest setup |
+| Write integration tests (API endpoints) | 3 days | Test database |
+| Set up Playwright | 1 day | None |
+| Write E2E tests (critical flows) | 3 days | Playwright setup |
+| CI/CD pipeline integration | 1 day | All tests passing locally |
+| **Total** | **~2 weeks** | |
+
+**Why Phase 12:** Testing should happen throughout development, but a dedicated phase ensures comprehensive coverage before launch. Catches regressions, documents expected behavior, and enables confident refactoring.
+
+---
+
 ## MVP Recommendation
 
 Deliver **Phases 1–6** first for a working booking system with a defined team and architecture (~7–8 weeks with AI-assisted development).  
 **Phases 7–9** add operational depth, retention, and revenue.  
 **Phase 10** operationalizes the field team.  
 **Phase 11** takes the product live.  
-**Full go-live: ~14–16 weeks (~3.5–4 months) with AI.**
+**Phase 12** ensures quality with comprehensive testing.  
+**Full go-live: ~16–18 weeks (~4–4.5 months) with AI.**
 
 ---
 
@@ -261,7 +484,8 @@ All estimates assume AI tools (GitHub Copilot, ChatGPT, Cursor) are used through
 | Phase 9 | Invoicing & payments (Stripe) | 2 weeks | Stripe integration, webhook handlers, PDF generation |
 | Phase 10 | Mobile/technician PWA | 2 weeks | Service worker setup, responsive components |
 | Phase 11 | Deployment & go-live | 1 week | CI/CD configs, Dockerfiles, monitoring setup, runbooks |
-| | **Full Product (Phases 1–11)** | **~14–16 weeks (~3.5–4 months)** | |
+| Phase 12 | Testing & QA | 2 weeks | Test scaffolding, mock generation, test data factories |
+| | **Full Product (Phases 1–12)** | **~16–18 weeks (~4–4.5 months)** | |
 
 ---
 

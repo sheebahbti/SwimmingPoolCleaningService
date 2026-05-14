@@ -75,7 +75,7 @@ This project includes extensive design documentation:
 | [SystemDesign.md](SystemDesign.md) | Architecture, data flows, security, cost analysis, key concepts explained |
 | [TechnologyChoices.md](TechnologyChoices.md) | Tech stack decisions with rationale, scaling strategy, NoSQL comparison |
 | [DatabaseAndAPIDesign.md](DatabaseAndAPIDesign.md) | Schema design, ER relationships, REST API contract |
-| [ImplementationPhases.md](ImplementationPhases.md) | 11-phase build plan, team structure, timeline estimates |
+| [ImplementationPhases.md](ImplementationPhases.md) | 12-phase build plan, team structure, timeline estimates |
 | [requirement.md](requirement.md) | Functional requirements by feature area |
 
 ## Installation
@@ -177,6 +177,65 @@ Deployed as a single Render service (Express serves both API + React static file
 ```
 
 See [ImplementationPhases.md — Phase 11](ImplementationPhases.md#phase-11--deployment--go-live) for full deployment guide.
+
+## Testing
+
+### Testing Stack
+
+| Tool | Purpose |
+|---|---|
+| **Jest** | Backend unit & integration tests |
+| **Supertest** | API endpoint testing |
+| **Vitest** | Frontend unit tests (faster with Vite) |
+| **React Testing Library** | Component testing |
+| **Playwright** | End-to-end browser tests |
+| **MSW** | API mocking for frontend tests |
+
+### Running Tests
+
+```bash
+# Backend tests
+cd backend
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage report
+
+# Frontend tests
+cd frontend
+npm test              # Run all tests
+npm run test:e2e      # Run Playwright E2E tests
+```
+
+### Test Structure
+
+```
+backend/
+├── src/
+│   ├── controllers/__tests__/   # Controller unit tests
+│   ├── routes/__tests__/        # API integration tests
+│   └── lib/__tests__/           # Service unit tests
+└── jest.config.js
+
+frontend/
+├── src/
+│   ├── pages/__tests__/         # Page component tests
+│   ├── components/__tests__/    # Component tests
+│   └── test/
+│       ├── setup.ts             # Test setup (MSW, RTL)
+│       └── mocks/               # MSW handlers
+├── vitest.config.ts
+└── e2e/                         # Playwright E2E tests
+    └── *.spec.ts
+```
+
+### Code Coverage Targets
+
+- **Statements:** 80%
+- **Branches:** 75%
+- **Functions:** 85%
+- **Lines:** 80%
+
+See [ImplementationPhases.md — Phase 12](ImplementationPhases.md#phase-12--testing--quality-assurance) for full testing strategy.
 
 ## License
 

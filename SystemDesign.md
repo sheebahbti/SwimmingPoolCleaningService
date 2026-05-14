@@ -183,6 +183,87 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 ---
 
+## Testing Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Testing Pyramid                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                         ┌─────────┐                             │
+│                         │   E2E   │ ← Playwright                │
+│                         │  Tests  │   (critical user flows)     │
+│                         └────┬────┘                             │
+│                     ┌────────┴────────┐                         │
+│                     │   Integration   │ ← Supertest + Jest      │
+│                     │     Tests       │   (API + database)      │
+│                     └────────┬────────┘                         │
+│         ┌────────────────────┴────────────────────┐             │
+│         │              Unit Tests                 │ ← Jest/Vitest│
+│         │    (functions, components, utils)       │   + RTL     │
+│         └─────────────────────────────────────────┘             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Test Types & Coverage
+
+| Test Type | What It Tests | Tools | Target Coverage |
+|---|---|---|---|
+| **Unit Tests** | Individual functions, utilities, business logic | Jest (backend), Vitest (frontend) | 80% statements |
+| **Component Tests** | React components in isolation | React Testing Library | Key user interactions |
+| **Integration Tests** | API endpoints with real database | Supertest + Jest | All API routes |
+| **E2E Tests** | Complete user workflows in browser | Playwright | 5-10 critical paths |
+
+### Test Data Strategy
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Development DB  │    │    Test DB      │    │  CI/CD Test DB  │
+│ (Local Postgres)│    │ (Separate local)│    │ (GitHub Actions)│
+│                 │    │                 │    │                 │
+│ Persistent data │    │ Wiped per suite │    │ Fresh per run   │
+│ Manual testing  │    │ npm test        │    │ Isolated        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+- **Seed script** creates test users (Admin, Technician, Customer) with known passwords
+- **Faker.js** generates realistic test data (names, emails, addresses)
+- **Database transactions** with rollback for fast, isolated integration tests
+
+### CI/CD Pipeline
+
+```
+Git Push → GitHub Actions
+               │
+               ├──→ Lint (ESLint, Prettier)
+               │
+               ├──→ Backend Tests
+               │    ├── Unit tests (Jest)
+               │    └── Integration tests (Supertest)
+               │
+               ├──→ Frontend Tests
+               │    ├── Unit tests (Vitest)
+               │    └── Component tests (RTL)
+               │
+               ├──→ E2E Tests (Playwright)
+               │    └── Chrome, Firefox, Safari
+               │
+               └──→ Deploy to Render (if all pass)
+```
+
+### What We Test vs. What We Skip
+
+| ✅ Test | ❌ Skip |
+|---|---|
+| Business logic (invoice calculation, permissions) | Prisma-generated code |
+| API contracts (request/response shapes) | Third-party SDK internals |
+| User interactions (forms, navigation) | CSS styling (visual regression for critical UI) |
+| Error handling (invalid inputs, failures) | Framework boilerplate |
+| Authentication & authorization flows | Obvious getters/setters |
+
+---
+
 ## Availability & Reliability
 
 - **Uptime target:** 99.9% (< 9 hours downtime/year)
