@@ -10,11 +10,11 @@ Every technology decision below was driven by answers to the [Ask Questions](Ask
 |---|---|---|
 | Total users: hundreds, concurrent: ~20–200 | → | Single server, no load balancer, no Redis |
 | Data is relational (Customers → Pools → Appointments) | → | PostgreSQL, not MongoDB or any NoSQL |
-| Data size: a few GB, read-heavy but low volume | → | PostgreSQL on Railway free tier, no caching layer |
-| Location: Dallas only, single region | → | Railway/Render, not AWS multi-region |
+| Data size: a few GB, read-heavy but low volume | → | PostgreSQL on Render free tier, no caching layer |
+| Location: Dallas only, single region | → | Render/Render, not AWS multi-region |
 | Team knows TypeScript, React, Node.js | → | Node.js + Express, not ASP.NET Core or Django |
 | Team: 6.5 people (PM, Dev Manager, 2 devs, UX, QA, part-time DevOps) = 4.75 FTE | → | Monolith, not microservices — simple stack a small team can own |
-| Budget: $0–$25/month | → | Railway/Render free tiers, not AWS/Azure |
+| Budget: $0–$25/month | → | Render/Render free tiers, not AWS/Azure |
 | Auth: email/password, 3 roles | → | Passport.js + JWT, not Auth0 or Clerk |
 | Payments: yes but can defer | → | Stripe in Phase 9, manual payments for MVP |
 | Files: before/after pool photos | → | Cloudflare R2 (production), local disk (development) |
@@ -33,7 +33,7 @@ Every technology decision below was driven by answers to the [Ask Questions](Ask
 - **Relational data model** — Customers → Pools → Appointments → Maintenance Records → Technicians → Invoices all have clear, structured relationships with foreign keys and constraints.
 - **ACID transactions** — Booking an appointment, assigning a technician, and sending confirmation must be atomic. PostgreSQL guarantees this.
 - **Prisma ORM** — Auto-generated TypeScript types, type-safe queries, and painless migrations. Perfect for a TypeScript stack.
-- **Managed hosting** — Railway/Render offer managed PostgreSQL with automated backups, free tiers, and zero-config deploys.
+- **Managed hosting** — Render/Render offer managed PostgreSQL with automated backups, free tiers, and zero-config deploys.
 
 ### NoSQL Database Types (Mnemonic: "Renu Moti Can Never Dance Choreography")
 
@@ -54,7 +54,7 @@ Every technology decision below was driven by answers to the [Ask Questions](Ask
 | **MongoDB** (Document) | Flexible schemas | Our data is highly relational. Customers have pools, pools have appointments, appointments have maintenance records. This is exactly what SQL was built for. |
 | **Cassandra** (Column-Family) | High write throughput | We're not an IoT platform or event-logging system. A pool cleaning service has modest write volume. |
 | **Neo4j** (Graph) | Relationships/traversal | No social network, fraud detection, or recommendation engine. Our relationships are simple parent-child, not complex graphs. |
-| **DynamoDB** (Key-Value + Document) | Serverless AWS | We're not in an AWS serverless architecture. PostgreSQL on Railway is simpler and cheaper. |
+| **DynamoDB** (Key-Value + Document) | Serverless AWS | We're not in an AWS serverless architecture. PostgreSQL on Render is simpler and cheaper. |
 | **Cosmos DB** (Multi-model) | Global distribution | We serve Dallas, Texas — not a globally distributed app. No need for Azure's multi-region replication. |
 
 ### When Would We Add Redis?
@@ -75,7 +75,7 @@ That's a future scaling concern, not an MVP concern.
 1. **Scope** — This is a scheduling/CRUD app, not an enterprise system. Express keeps things lean.
 2. **One language** — TypeScript end-to-end (frontend + backend) means shared validation schemas, shared types, less mental overhead.
 3. **Ecosystem** — npm has purpose-built packages for every feature: scheduling, PDF invoices, email, payments.
-4. **Deployment cost** — Node.js apps deploy cheaply on Railway/Render/Vercel. Azure App Service is more expensive for what we need.
+4. **Deployment cost** — Node.js apps deploy cheaply on Render/Render/Vercel. Azure App Service is more expensive for what we need.
 5. **Speed of development** — Faster iteration for a small team building an MVP.
 
 ### Backend npm Packages
@@ -197,22 +197,22 @@ npm install multer              # For handling file uploads in Express
 
 ---
 
-## Deployment: Railway (Single Service)
+## Deployment: Render (Single Service)
 
 | Component | Platform | Why |
 |---|---|---|
-| Express backend + React frontend | Railway | Single service — Express serves both API and built React static files. One deploy, one URL, no CORS. |
-| PostgreSQL | Railway | Managed database with automated backups, same platform as app server (low latency) |
+| Express backend + React frontend | Render | Single service — Express serves both API and built React static files. One deploy, one URL, no CORS. |
+| PostgreSQL | Render | Managed database with automated backups, same platform as app server (low latency) |
 
-**Why a single Railway service (not Railway + Vercel)?**
+**Why a single Render service (not Render + Vercel)?**
 - All users are in Dallas — a global CDN provides no meaningful benefit for a local business
 - One deploy, one URL, one set of environment variables — simpler to manage and debug
 - No CORS configuration — frontend and API are same-origin
-- If expanding beyond Dallas later, add Cloudflare (free) in front of Railway for CDN caching
+- If expanding beyond Dallas later, add Cloudflare (free) in front of Render for CDN caching
 
 ### Why NOT Azure/AWS?
 
-- **Cost** — Overkill for a local service business app. Railway/Render free tiers cover MVP.
+- **Cost** — Overkill for a local service business app. Render/Render free tiers cover MVP.
 - **Complexity** — No need for VPCs, IAM roles, or multi-region infrastructure for a Dallas-only service.
 - **Speed** — Zero-config GitHub deploys vs. configuring Azure App Service or ECS.
 
@@ -222,13 +222,13 @@ npm install multer              # For handling file uploads in Express
 
 | Layer | Single Region (Our App — Dallas) | Multi-Region (National/Global) |
 |---|---|---|
-| **Database** | PostgreSQL (single instance on Railway) | PostgreSQL + read replicas per region, OR CockroachDB (distributed SQL), OR Cosmos DB |
+| **Database** | PostgreSQL (single instance on Render) | PostgreSQL + read replicas per region, OR CockroachDB (distributed SQL), OR Cosmos DB |
 | **Caching** | None needed | Redis required (edge cache per region for low-latency reads) |
 | **Auth/Sessions** | JWT (stateless — no session store) | JWT still works (no change needed) |
-| **Backend** | Single Node.js instance on Railway/Render | Multiple instances per region behind a global load balancer (AWS ALB, Cloudflare) |
-| **Frontend/CDN** | Add Cloudflare (free) in front of Railway | Cloudflare caches static assets globally — add only if expanding beyond Dallas |
+| **Backend** | Single Node.js instance on Render/Render | Multiple instances per region behind a global load balancer (AWS ALB, Cloudflare) |
+| **Frontend/CDN** | Add Cloudflare (free) in front of Render | Cloudflare caches static assets globally — add only if expanding beyond Dallas |
 | **DNS** | Simple DNS | Geo-DNS routing (Route 53, Cloudflare) to route users to nearest region |
-| **Hosting** | Railway/Render (simple, cheap) | AWS / Azure / GCP (multi-region infrastructure required) |
+| **Hosting** | Render/Render (simple, cheap) | AWS / Azure / GCP (multi-region infrastructure required) |
 | **Notifications** | Nodemailer + Twilio | No change (API calls are region-agnostic) |
 | **Payments** | Stripe | Stripe still works, add multi-currency support |
 | **Cost** | ~$0–$25/month (free tiers) | ~$500–$2,000+/month (multi-region compute + distributed DB) |
@@ -241,9 +241,9 @@ npm install multer              # For handling file uploads in Express
 
 | Concurrent Users | App Servers | Database | Caching | Load Balancer | Hosting | Est. Monthly Cost |
 |---|---|---|---|---|---|---|
-| **20–200** (Our app — local Dallas business) | 1 Node.js instance | PostgreSQL (single) | None needed | None needed | Railway/Render | ~$0–$25 |
-| **200–1,000** | 1 Node.js instance | PostgreSQL (single) + connection pooling (Prisma) | None needed | None needed | Railway/Render | ~$25–$50 |
-| **1,000–5,000** | 1–2 instances | PostgreSQL + read replica | Redis (cache hot reads) | Nginx or Railway built-in | Railway Pro or AWS | ~$50–$150 |
+| **20–200** (Our app — local Dallas business) | 1 Node.js instance | PostgreSQL (single) | None needed | None needed | Render/Render | ~$0–$25 |
+| **200–1,000** | 1 Node.js instance | PostgreSQL (single) + connection pooling (Prisma) | None needed | None needed | Render/Render | ~$25–$50 |
+| **1,000–5,000** | 1–2 instances | PostgreSQL + read replica | Redis (cache hot reads) | Nginx or Render built-in | Render Pro or AWS | ~$50–$150 |
 | **5,000–10,000** | 2–3 instances | PostgreSQL primary + 1 read replica | Redis (cache + rate limiting) | AWS ALB | AWS | ~$150–$300 |
 | **10,000–50,000** | 3–5 instances (auto-scaling) | PostgreSQL primary + 2 read replicas | Redis cluster | AWS ALB | AWS | ~$300–$500 |
 | **50,000–1,000,000** | 5–10 instances (auto-scaling) | PostgreSQL + PgBouncer + sharding | Redis cluster + CDN caching | AWS ALB | AWS multi-AZ | ~$500–$2,000+ |
@@ -267,4 +267,4 @@ npm install multer              # For handling file uploads in Express
 | Backend | Node.js + Express | One language (TS), fast development, cheap hosting |
 | Frontend | React + Tailwind | Component reuse, type safety, rapid UI |
 | Auth | Passport.js + JWT | Stateless, simple, no external dependencies |
-| Hosting | Railway (single service) | Cheap, simple, GitHub-integrated |
+| Hosting | Render (single service) | Cheap, simple, GitHub-integrated |

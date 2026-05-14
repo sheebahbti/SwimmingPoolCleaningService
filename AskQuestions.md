@@ -77,7 +77,7 @@
 |---|---|---|---|
 | 7.1 | What is the **monthly infrastructure budget**? | Determines hosting choice — free tiers vs. cloud providers | Low — start with free tiers ($0–$25/month) |
 | 7.2 | Do you need **CI/CD** (automated testing and deployment)? | Saves time, catches bugs early, enables safe deploys | Yes — GitHub Actions |
-| 7.3 | Where will you **host** the app? | Affects cost, complexity, and scaling options | Railway (single service — backend + frontend + DB) |
+| 7.3 | Where will you **host** the app? | Affects cost, complexity, and scaling options | Render (single service — backend + frontend + DB) |
 | 7.4 | Do you need a **staging environment**? | Test changes before they hit production | Yes — before go-live |
 | 7.5 | What is the **uptime requirement**? (99%? 99.9%? 99.99%?) | Higher uptime = more infrastructure, more cost | 99.9% is sufficient for a local service business |
 
@@ -108,18 +108,18 @@
 
 | # | Question | Answer | Impact on Tech Choice |
 |---|---|---|---|
-| 1.1 | Total users | Hundreds to low thousands | Small DB — PostgreSQL on Railway (free tier) |
+| 1.1 | Total users | Hundreds to low thousands | Small DB — PostgreSQL on Render (free tier) |
 | 1.2 | Concurrent users | ~20–200 at peak | No load balancer, no Redis, single server is fine |
 | 1.3 | User roles | Admin, Technician, Customer | Passport.js + JWT with role claims |
 | 1.4 | Growth rate | Stable, gradual | No need to over-engineer for scale |
-| 2.1 | User location | Dallas, Texas only | Single-region deployment on Railway |
+| 2.1 | User location | Dallas, Texas only | Single-region deployment on Render |
 | 3.5 | File storage | Yes — pool photos | S3 / Cloudflare R2 for object storage |
 | 4.3 | Payments | Yes | Stripe handles PCI compliance |
 | 5.2 | Calendar | Yes — core feature | FullCalendar (React) |
 | 5.7 | Reporting | Basic — revenue, appointment counts | SQL aggregation queries — no analytics platform |
 | 6.1 | Team size | ~6.5 people (4.75 FTE) | Simple stack — monolith, not microservices |
 | 6.3 | Delivery date | ~7–8 weeks for MVP with AI | Focus on Phases 1–6 first |
-| 7.3 | Hosting | Railway (single service) | Simple, cheap, GitHub-integrated |
+| 7.3 | Hosting | Render (single service) | Simple, cheap, GitHub-integrated |
 
 ### Ask Later (Future Phases)
 

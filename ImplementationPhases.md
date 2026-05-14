@@ -6,7 +6,7 @@
 
 See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, rationale, NoSQL comparison, and scaling strategy.
 
-**Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Railway.
+**Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Render.
 
 ---
 
@@ -17,7 +17,7 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 - **Full-Stack Developer (2)** — Node.js/Express backend + React frontend; both should be strong in TypeScript
 - **UI/UX Designer (1, ~50%)** — Designs customer-facing booking flow, technician mobile views, and admin dashboard
 - **QA Engineer (1)** — Manual + automated testing; writes integration tests from Phase 4 onward
-- **DevOps / Cloud Engineer (0.5, part-time)** — Sets up CI/CD pipeline, deployment to Railway, database backups
+- **DevOps / Cloud Engineer (0.5, part-time)** — Sets up CI/CD pipeline, deployment to Render, database backups
 
 **Total team: 6.5 people (4.75 FTE)**
 
@@ -37,7 +37,7 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 - Design REST API contract (endpoints, request/response schemas, status codes)
 - Define authentication & authorization flows (roles: Admin, Technician, Customer)
 - Plan database schema with Prisma models, relationships, and indexes
-- Document deployment architecture (Railway single-service topology)
+- Document deployment architecture (Render single-service topology)
 - Identify non-functional requirements: performance targets, uptime SLA, data retention policy
 - Produce wireframes / mockups for key screens (booking flow, calendar, dashboard)
 
@@ -160,41 +160,41 @@ Before deployment (local only):
   Your laptop → backend (port 3000) + frontend (port 5174) + PostgreSQL
 
 After deployment (live on the internet):
-  Railway (cloud) → Express backend + React frontend + PostgreSQL database → one public URL
+  Render (cloud) → Express backend + React frontend + PostgreSQL database → one public URL
   Anyone in the world can use the app
 ```
 
-### Why one service (not Railway + Vercel)?
+### Why one service (not Render + Vercel)?
 
 | Concern | Answer |
 |---|---|
-| **Don't I need a CDN?** | No — all users are in Dallas. A React SPA is ~500KB and loads in under a second from Railway. Add Cloudflare (free) later if expanding beyond Dallas. |
+| **Don't I need a CDN?** | No — all users are in Dallas. A React SPA is ~500KB and loads in under a second from Render. Add Cloudflare (free) later if expanding beyond Dallas. |
 | **Don't I need separate deploys?** | Not at this scale. One git push deploys both frontend and API. Simpler to manage. |
 | **What about CORS?** | Not needed. Frontend and API are same-origin (same URL), so no cross-origin issues at all. |
 | **What if I need to scale later?** | Split frontend to Vercel/Cloudflare Pages when you expand beyond Dallas or hire a separate frontend team. The code already supports it (`VITE_API_URL` env var). |
 
-### Step-by-step: Deploy to Railway
+### Step-by-step: Deploy to Render
 
-1. Go to **railway.app** → **New Project** → **Deploy from GitHub repo**
-2. Select `SwimmingPoolCleaningService` — Railway will use the `railway.toml` config at the repo root
+1. Go to **render.app** → **New Project** → **Deploy from GitHub repo**
+2. Select `SwimmingPoolCleaningService` — Render will use the `render.toml` config at the repo root
 3. In the same project: **+ New** → **Database** → **PostgreSQL**
-4. Link the PostgreSQL service to your app service — Railway auto-sets `DATABASE_URL` via reference variable `${{Postgres.DATABASE_URL}}`
+4. Link the PostgreSQL service to your app service — Render auto-sets `DATABASE_URL` via reference variable `${{Postgres.DATABASE_URL}}`
 5. Go to your app service → **Variables** tab → add:
    - `JWT_SECRET` — a strong random string (`openssl rand -hex 32`)
-   - `FRONTEND_URL` — your Railway public URL (e.g. `https://your-app.up.railway.app`)
+   - `FRONTEND_URL` — your Render public URL (e.g. `https://your-app.up.render.app`)
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — email credentials (or skip for now)
    - `STRIPE_SECRET_KEY` — Stripe key (or skip for now)
-6. Deploy — Railway runs:
+6. Deploy — Render runs:
    - **Build:** `cd frontend && npm ci && npm run build && cd ../backend && npm ci && npm run build`
    - **Start:** `cd backend && npx prisma migrate deploy && node dist/index.js`
-7. Railway gives you a public URL like `https://your-app.up.railway.app`
-8. Seed the database with an initial admin account (run seed script or create manually via Railway terminal)
+7. Render gives you a public URL like `https://your-app.up.render.app`
+8. Seed the database with an initial admin account (run seed script or create manually via Render terminal)
 
 ### How the single service works
 
 Express serves both the API and the React frontend from one server:
 
-| Request | What Railway Does |
+| Request | What Render Does |
 |---|---|
 | `GET /` | Serves `frontend/dist/index.html` (React SPA) |
 | `GET /assets/main.js` | Serves built JS bundle from `frontend/dist/` |
@@ -205,10 +205,10 @@ Express serves both the API and the React frontend from one server:
 
 | Thing | Development (local) | Production (deployed) |
 |---|---|---|
-| URL | `http://localhost:3000` (backend) + `http://localhost:5174` (frontend) | `https://your-app.up.railway.app` (one URL for everything) |
+| URL | `http://localhost:3000` (backend) + `http://localhost:5174` (frontend) | `https://your-app.up.render.app` (one URL for everything) |
 | API calls | Vite proxy (`/api` → port 3000) | Same-origin (`/api` — no proxy or CORS needed) |
-| Database | Local PostgreSQL | Railway PostgreSQL (starts empty, migrations run on deploy) |
-| File uploads | `backend/uploads/` on your disk | Need Cloudflare R2 (Railway disk is ephemeral) |
+| Database | Local PostgreSQL | Render PostgreSQL (starts empty, migrations run on deploy) |
+| File uploads | `backend/uploads/` on your disk | Need Cloudflare R2 (Render disk is ephemeral) |
 | TypeScript | Runs directly via ts-node | Compiled to JS first (`tsc`), then `node dist/index.js` |
 | Frontend serving | Vite dev server (hot reload) | Express serves built static files from `frontend/dist/` |
 
@@ -217,17 +217,17 @@ Express serves both the API and the React frontend from one server:
 - `backend/src/index.ts` — Serves frontend static files from `frontend/dist/` with SPA catch-all route; CORS reads `FRONTEND_URL` env var (fallback for development)
 - `frontend/src/lib/api.ts` — API base URL defaults to `/api` (same-origin, works in both dev and production)
 - `backend/package.json` — build script runs `prisma generate` before `tsc`
-- `railway.toml` — Builds both frontend and backend, runs migrations on start, health check at `/api/health`
+- `render.toml` — Builds both frontend and backend, runs migrations on start, health check at `/api/health`
 
 ### Remaining tasks
 
-- Configure Railway project with app service + PostgreSQL database
-- Set environment variables in Railway dashboard
+- Configure Render project with app service + PostgreSQL database
+- Set environment variables in Render dashboard
 - Seed production database with initial admin account
-- Switch file uploads to Cloudflare R2 (local disk doesn't persist on Railway)
-- Set up CI/CD: auto-deploy on every `git push` to main (Railway does this automatically when connected to GitHub)
-- Application monitoring: Sentry (errors), Railway metrics (CPU/memory)
-- Optional: Add Cloudflare (free) in front of Railway for CDN + DDoS protection if expanding beyond Dallas
+- Switch file uploads to Cloudflare R2 (local disk doesn't persist on Render)
+- Set up CI/CD: auto-deploy on every `git push` to main (Render does this automatically when connected to GitHub)
+- Application monitoring: Sentry (errors), Render metrics (CPU/memory)
+- Optional: Add Cloudflare (free) in front of Render for CDN + DDoS protection if expanding beyond Dallas
 
 **Why Phase 11:** Deployment is the final gate. All features should be stable and tested before pushing to production.
 

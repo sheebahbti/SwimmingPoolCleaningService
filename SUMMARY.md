@@ -12,7 +12,7 @@
 **Who:** Solo developer + AI. Learning project.
 **Stack:** Express (TypeScript) + PostgreSQL + Prisma + React + Nodemailer
 **Storage:** Local disk (dev) → Cloudflare R2 (production)
-**Deploy:** Railway (single service — backend + frontend + DB)
+**Deploy:** Render (single service — backend + frontend + DB)
 
 ---
 
@@ -32,7 +32,7 @@
 | 10 | Photo uploads + maintenance records (Phase 7) | ~2 hrs | **Done** |
 | 11 | Automated email reminders + daily summaries (Phase 8) | ~1 hr | **Done** |
 | 12 | Invoicing + Stripe payments + PDF generation (Phase 9) | ~2 hrs | **Done** |
-| 13 | Deploy to Railway (backend + frontend + DB) | ~1 hr | Not started |
+| 13 | Deploy to Render (backend + frontend + DB) | ~1 hr | Not started |
 
 **Total: ~2-3 days**
 

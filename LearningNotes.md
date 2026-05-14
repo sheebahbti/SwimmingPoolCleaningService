@@ -103,7 +103,7 @@ const users = await prisma.user.findMany();
 
 1. **Different jobs** — Express handles business logic (auth, database queries, file uploads). Vite handles compiling React/TypeScript/Tailwind into browser-ready files with instant hot reload.
 
-2. **Independent scaling** — In production, Express serves both the API and the built React static files from a single Railway service. For a local Dallas business, this is simpler and sufficient. If expanding beyond Dallas later, the frontend can be split to a CDN (Cloudflare, free tier).
+2. **Independent scaling** — In production, Express serves both the API and the built React static files from a single Render service. For a local Dallas business, this is simpler and sufficient. If expanding beyond Dallas later, the frontend can be split to a CDN (Cloudflare, free tier).
 
 3. **Development speed** — Vite gives instant hot module replacement (change a component → browser updates in milliseconds). Express restarts the whole Node process via nodemon. Mixing them would slow down frontend development.
 
@@ -117,7 +117,7 @@ The Vite proxy in `vite.config.ts` forwards any `/api` or `/uploads` request to 
 
 ### In production, there's no Vite server
 
-You run `npm run build` → Vite outputs static files → Express serves them via `express.static`. The same Express server handles both the API routes and the frontend static files from a single Railway service.
+You run `npm run build` → Vite outputs static files → Express serves them via `express.static`. The same Express server handles both the API routes and the frontend static files from a single Render service.
 
 ---
 
@@ -1198,13 +1198,13 @@ When you run `npm run dev`, your app only exists on your own laptop. `localhost`
 
 Deployment copies your code to a computer in the cloud that:
 - Runs 24/7 (even when your laptop is off)
-- Has a real public URL (e.g. `https://yourapp.up.railway.app`)
+- Has a real public URL (e.g. `https://yourapp.up.render.app`)
 - Anyone in the world can access
 
-### Why we use two services (Railway + Vercel)
+### Why we use two services (Render + Vercel)
 
 ```
-Railway                              Vercel
+Render                              Vercel
 ───────────────────────────────      ──────────────────────────────
 Runs: Node.js Express backend        Runs: React frontend (static files)
 Runs: PostgreSQL database            Auto-deploys on git push
@@ -1223,7 +1223,7 @@ They're separate because:
 | **Development** | `ts-node src/index.ts` — runs TypeScript directly (slow start, no compilation step) |
 | **Production** | `tsc` compiles to JavaScript → `node dist/index.js` runs the compiled JS (faster, proper for servers) |
 
-Railway runs `npm run build` (which runs `prisma generate && tsc`) then `npm start` (which runs `node dist/index.js`).
+Render runs `npm run build` (which runs `prisma generate && tsc`) then `npm start` (which runs `node dist/index.js`).
 
 ### What VITE_API_URL does
 
@@ -1249,22 +1249,22 @@ app.use(cors({
 }));
 ```
 
-In development, the frontend runs on `localhost:5173` and the API on `localhost:3000` — different ports = different origins, so CORS is needed. In production, both are on the same Railway URL, so CORS doesn't apply.
+In development, the frontend runs on `localhost:5173` and the API on `localhost:3000` — different ports = different origins, so CORS is needed. In production, both are on the same Render URL, so CORS doesn't apply.
 
 ### Environment variables: dev vs production
 
-| Variable | Development (.env) | Production (Railway dashboard) |
+| Variable | Development (.env) | Production (Render dashboard) |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://localhost:5432/...` | Railway auto-sets this |
+| `DATABASE_URL` | `postgresql://localhost:5432/...` | Render auto-sets this |
 | `JWT_SECRET` | any string | long random secret |
-| `FRONTEND_URL` | `http://localhost:5173` | Your Railway URL (e.g. `https://yourapp.up.railway.app`) |
+| `FRONTEND_URL` | `http://localhost:5173` | Your Render URL (e.g. `https://yourapp.up.render.app`) |
 | `STRIPE_SECRET_KEY` | test key (`sk_test_...`) | live key (`sk_live_...`) |
 | `SMTP_*` | Mailtrap (catches emails) | SendGrid (sends real emails) |
 
-### Why Railway's filesystem is ephemeral
+### Why Render's filesystem is ephemeral
 
-Railway servers can restart, redeploy, or move to different hardware at any time. When that happens, **any files written to disk are lost**. This means:
-- `backend/uploads/` (photo storage) **does not work** on Railway
+Render servers can restart, redeploy, or move to different hardware at any time. When that happens, **any files written to disk are lost**. This means:
+- `backend/uploads/` (photo storage) **does not work** on Render
 - Solution: use **Cloudflare R2** (cloud object storage) — files stored there persist forever
 
 This is a known trade-off with cloud platforms. The database persists (it's a separate managed service), but the local filesystem is temporary.

@@ -2,7 +2,7 @@
 
 A full-stack scheduling and business management platform for a local pool cleaning company in Dallas, TX. Built to solve real operational problems: appointment booking, technician dispatch, maintenance tracking, photo documentation, invoicing, and automated customer communications.
 
-> **Live Demo:** [https://your-app.up.railway.app](https://your-app.up.railway.app) *(update with your Railway URL)*
+> **Live Demo:** [https://your-app.up.render.app](https://your-app.up.render.app) *(update with your Render URL)*
 >
 > **Demo Video:** [Watch the full walkthrough](#) *(add link after recording)*
 
@@ -13,20 +13,20 @@ I built this to demonstrate end-to-end full-stack development — from system de
 ### Architecture
 
 ```
-Browser → Railway (single service)
+Browser → Render (single service)
               ├── React SPA (static files via express.static)
               ├── Express API (/api/* routes)
               ├── node-cron (scheduled jobs)
-              └── PostgreSQL (Railway managed DB)
+              └── PostgreSQL (Render managed DB)
 ```
 
-Single-service deployment: Express serves both the API and the built React frontend from one Railway instance. No CORS, one URL, one deploy. See [SystemDesign.md](SystemDesign.md) for the full architecture document.
+Single-service deployment: Express serves both the API and the built React frontend from one Render instance. No CORS, one URL, one deploy. See [SystemDesign.md](SystemDesign.md) for the full architecture document.
 
 ### Key Technical Decisions
 
 | Decision | Choice | Why |
 |---|---|---|
-| Single service vs. separate frontend/backend | Single Railway service | All users in Dallas — no CDN benefit. Simpler ops, no CORS. [Details](SystemDesign.md) |
+| Single service vs. separate frontend/backend | Single Render service | All users in Dallas — no CDN benefit. Simpler ops, no CORS. [Details](SystemDesign.md) |
 | SQL vs. NoSQL | PostgreSQL | Relational data (users → pools → appointments → invoices). ACID needed for payments. [Details](TechnologyChoices.md) |
 | Auth approach | JWT + bcrypt (no session store) | Stateless — no Redis needed at this scale. [Details](TechnologyChoices.md) |
 | File storage | Local disk (dev) → Cloudflare R2 (prod) | R2 has $0 egress, free tier never expires. [Details](SystemDesign.md#4-object-storage--pool-photos) |
@@ -50,7 +50,7 @@ Single-service deployment: Express serves both the API and the built React front
 | Payments | Stripe (PaymentIntent flow) |
 | Email | Nodemailer (Mailtrap for testing) |
 | File Upload | Multer (local dev), Cloudflare R2 (production) |
-| Deployment | Railway (single service), Nixpacks |
+| Deployment | Render (single service), Nixpacks |
 
 ## Documentation
 
@@ -149,15 +149,15 @@ Open http://localhost:5173 in your browser.
 ├── SystemDesign.md          # Architecture & design decisions
 ├── TechnologyChoices.md     # Tech stack rationale
 ├── ImplementationPhases.md  # Build phases & timeline
-└── railway.toml             # Railway deployment config
+└── render.yaml             # Render deployment config
 ```
 
 ## Deployment
 
-Deployed as a single Railway service (Express serves both API + React static files).
+Deployed as a single Render service (Express serves both API + React static files).
 
 ```bash
-# railway.toml handles everything:
+# render.yaml handles everything:
 # Build:  frontend (npm ci + build) → backend (npm ci + build)
 # Start:  prisma migrate deploy → node dist/index.js
 ```

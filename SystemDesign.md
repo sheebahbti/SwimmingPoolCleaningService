@@ -20,7 +20,7 @@
        └────────┬────────┘
                 │
        ┌────────▼────────┐
-       │   Railway       │  ← Single service: Express serves both
+       │   Render       │  ← Single service: Express serves both
        │   (App Server)  │    API endpoints + React static files
        │                 │
        │  React SPA      │  ← Built frontend served via express.static
@@ -40,7 +40,7 @@
 ┌────▼─────┐ ┌──▼───────┐ ┌▼─────────┐ ┌─▼──────┐ ┌──▼────┐
 │PostgreSQL│ │Cloudflare│ │Nodemailer│ │ Twilio │ │Stripe │
 │   (DB)   │ │    R2    │ │  (SMTP)  │ │ (SMS)  │ │(Pay)  │
-│ Railway  │ │ (photos)*│ │Mailtrap**│ │        │ │       │
+│ Render  │ │ (photos)*│ │Mailtrap**│ │        │ │       │
 └──────────┘ └──────────┘ └──────────┘ └────────┘ └───────┘
 
 *  Local disk for development, Cloudflare R2 for production
@@ -61,33 +61,33 @@ Cron schedule:
 - No separate CDN needed — all users are in Dallas; Express serves static files fast enough for a local business
 - See [TechnologyChoices.md](TechnologyChoices.md) for detailed rationale
 
-**Why a single service (not Railway + Vercel)?**
+**Why a single service (not Render + Vercel)?**
 - All users are in the Dallas metro area — a global CDN provides no meaningful benefit
 - One deploy, one URL, one set of environment variables — simpler to manage and debug
 - No CORS configuration needed — frontend and API are same-origin (`/api` calls, no cross-origin)
 - One set of logs, one dashboard — when something breaks, you look in one place
-- If the business expands beyond Dallas later, add Cloudflare (free) in front of Railway for CDN caching
+- If the business expands beyond Dallas later, add Cloudflare (free) in front of Render for CDN caching
 
 ---
 
 ## Component Breakdown
 
-### 1. App Server — Node.js + Express (Railway)
+### 1. App Server — Node.js + Express (Render)
 
 - **What:** Single Node.js + Express server (TypeScript) that serves both the API and the React frontend
 - **Stateless:** No session data on the server — JWT tokens carry auth state
 - **Handles:** REST API (`/api/*` routes), business logic, authentication, input validation, and serving the built React SPA (static files via `express.static`)
 - **SPA routing:** A catch-all route serves `index.html` for any non-API path, so client-side routing (React Router) works correctly
 - **Why single server:** At ~20–200 concurrent users, one server has plenty of capacity. Add a second server only if response times degrade.
-- **Cost:** Railway free tier → ~$5–$10/month on Pro
+- **Cost:** Render free tier → ~$5–$10/month on Pro
 
-### 3. PostgreSQL Database (Railway)
+### 3. PostgreSQL Database (Render)
 
-- **What:** Single PostgreSQL instance on Railway
+- **What:** Single PostgreSQL instance on Render
 - **ORM:** Prisma (TypeScript, type-safe queries, migrations)
 - **Handles:** All reads and writes — customers, pools, appointments, service records, invoices
-- **Backups:** Railway automated daily snapshots
-- **Cost:** Railway free tier → ~$5–$10/month on Pro
+- **Backups:** Render automated daily snapshots
+- **Cost:** Render free tier → ~$5–$10/month on Pro
 
 ### 4. Object Storage — Pool Photos
 
@@ -121,7 +121,7 @@ Cron schedule:
 ## Data Flow — Booking an Appointment
 
 ```
-Customer → App Server (Railway)
+Customer → App Server (Render)
                 │
                 ├─→ Serves React SPA (static files, first load only)
                 ├─→ POST /api/bookings
@@ -139,7 +139,7 @@ Customer → App Server (Railway)
 ### Development (Local Storage)
 
 ```
-Technician → App Server (Railway)
+Technician → App Server (Render)
                   │
                   ├─→ multer middleware (parses multipart/form-data)
                   ├─→ Saves file to backend/uploads/ folder
@@ -155,7 +155,7 @@ Browser → GET /uploads/abc123.jpg → express.static serves file from disk
 ### Production (Cloudflare R2)
 
 ```
-Technician → App Server (Railway)
+Technician → App Server (Render)
                   │
                   ├─→ Generate pre-signed R2 upload URL
                   │
@@ -172,13 +172,13 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 ## Security Architecture
 
-- **SSL/TLS everywhere** — HTTPS enforced by Railway (auto-provisioned certificates)
+- **SSL/TLS everywhere** — HTTPS enforced by Render (auto-provisioned certificates)
 - **JWT tokens** — Short-lived access tokens (15 min) + refresh tokens (7 days), stored in httpOnly cookies
 - **Input validation** — Zod schemas on every API endpoint
 - **Rate limiting** — express-rate-limit middleware (in-memory, per-IP)
 - **Pre-signed URLs** — Photos uploaded directly to S3/R2, never passing through app server
 - **Database** — Parameterized queries via Prisma (SQL injection prevention)
-- **Secrets** — Environment variables managed by Railway, never committed to repo
+- **Secrets** — Environment variables managed by Render, never committed to repo
 - **CORS** — Not needed (frontend and API are same-origin); configured as fallback for development
 
 ---
@@ -186,9 +186,9 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 ## Availability & Reliability
 
 - **Uptime target:** 99.9% (< 9 hours downtime/year)
-- **Health checks:** Railway monitors `/api/health` endpoint
-- **Database backups:** Railway automated daily snapshots, 7-day retention
-- **Monitoring:** Sentry (error tracking), Railway metrics (CPU, memory, response times)
+- **Health checks:** Render monitors `/api/health` endpoint
+- **Database backups:** Render automated daily snapshots, 7-day retention
+- **Monitoring:** Sentry (error tracking), Render metrics (CPU, memory, response times)
 - **Logging:** Structured JSON logs via Pino or Winston
 
 ---
@@ -197,13 +197,13 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 | Component | Service | Est. Monthly Cost |
 |---|---|---|
-| App Server + Frontend | Railway (free → Pro) | $0–$10 |
-| PostgreSQL | Railway (free → Pro) | $0–$10 |
+| App Server + Frontend | Render (free → Pro) | $0–$10 |
+| PostgreSQL | Render (free → Pro) | $0–$10 |
 | Object Storage | Cloudflare R2 (free tier) | $0 |
-| Domain + SSL | Cloudflare (free) / Railway | $0–$12/year |
+| Domain + SSL | Cloudflare (free) / Render | $0–$12/year |
 | **Total** | | **$0–$25/month** |
 
-> **When to upgrade:** If response times exceed 500ms consistently or Railway free tier limits are hit, move to Railway Pro (~$20/month total for server + DB). See [TechnologyChoices.md — Scaling Strategy](TechnologyChoices.md) for what to add at each growth stage.
+> **When to upgrade:** If response times exceed 500ms consistently or Render free tier limits are hit, move to Render Pro (~$20/month total for server + DB). See [TechnologyChoices.md — Scaling Strategy](TechnologyChoices.md) for what to add at each growth stage.
 
 ---
 
@@ -213,7 +213,7 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 Instead of loading a new HTML page every time you click a link, a React SPA loads **one HTML page once**, then JavaScript handles all navigation and content updates without full page reloads.
 
-- Browser downloads the React app (JS/CSS bundle) once from the Railway server
+- Browser downloads the React app (JS/CSS bundle) once from the Render server
 - User clicks "Appointments" → React swaps content on screen instantly (no server round-trip for a new page)
 - Only **data** is fetched from the API server (JSON) — not entire HTML pages
 - Page transitions feel instant (no white-screen flicker)
@@ -235,9 +235,9 @@ For this app: technicians use the PWA on their phones to view schedules, upload 
 
 A network of servers spread across the world that deliver your files from the location closest to the user.
 
-**For this app (single region, Dallas):** We don't use a separate CDN. All users are in the Dallas metro area, so serving static files directly from Railway is fast enough. The React SPA is ~500KB — it loads in under a second.
+**For this app (single region, Dallas):** We don't use a separate CDN. All users are in the Dallas metro area, so serving static files directly from Render is fast enough. The React SPA is ~500KB — it loads in under a second.
 
-**If we need a CDN later:** Put Cloudflare (free tier) in front of the Railway URL. This gives global edge caching, DDoS protection, and free SSL — takes about 5 minutes to set up. Worth doing if the business expands beyond Dallas.
+**If we need a CDN later:** Put Cloudflare (free tier) in front of the Render URL. This gives global edge caching, DDoS protection, and free SSL — takes about 5 minutes to set up. Worth doing if the business expands beyond Dallas.
 
 **CDN alternatives:** Cloudflare (free), AWS CloudFront, Fastly
 
@@ -251,11 +251,11 @@ The computer that runs your backend code. When a user books an appointment, thei
 - Sends emails (Nodemailer) and SMS (Twilio)
 - Returns JSON responses to the frontend
 
-### What is Railway?
+### What is Render?
 
-A cloud platform that runs your code — like renting a computer in the cloud. You push code to GitHub → Railway auto-deploys it and gives your server a public URL.
+A cloud platform that runs your code — like renting a computer in the cloud. You push code to GitHub → Render auto-deploys it and gives your server a public URL.
 
-**We use Railway for three things:**
+**We use Render for three things:**
 
 | What | Why |
 |---|---|
@@ -263,7 +263,7 @@ A cloud platform that runs your code — like renting a computer in the cloud. Y
 | React Frontend (static files) | Served by Express via `express.static` — same server, same URL |
 | PostgreSQL Database | Stores all data (customers, pools, appointments, invoices) |
 
-**Why everything on Railway:** Same platform = one dashboard, one bill, one URL, one deploy, and low latency between server and database (~1-2ms since they're in the same data center). No CORS configuration needed since frontend and API share the same origin.
+**Why everything on Render:** Same platform = one dashboard, one bill, one URL, one deploy, and low latency between server and database (~1-2ms since they're in the same data center). No CORS configuration needed since frontend and API share the same origin.
 
 **Alternatives:** Render, Fly.io, Heroku (no free tier), AWS EC2, DigitalOcean
 
@@ -286,11 +286,11 @@ Our Express server does double duty:
 
 | Component | Hosted On | Why There |
 |---|---|---|
-| React frontend + Express API | **Railway** (single service) | One deploy, one URL, no CORS — simplest setup for a local business |
-| PostgreSQL database | **Railway** | Co-located with app server for low latency |
+| React frontend + Express API | **Render** (single service) | One deploy, one URL, no CORS — simplest setup for a local business |
+| PostgreSQL database | **Render** | Co-located with app server for low latency |
 | Pool photos (dev) | **Local disk** | Zero setup, testing file upload logic |
 | Pool photos (prod) | **Cloudflare R2** | $0 egress fees, free tier never expires |
 | Email delivery | **Mailtrap** (testing) / **SendGrid** (production) | Test emails safely before going live |
 | SMS delivery | **Twilio** | SMS delivery service |
 | Payment processing | **Stripe** | PCI-compliant payment processor |
-| CDN (optional, future) | **Cloudflare** (free tier) | Add in front of Railway if expanding beyond Dallas |
+| CDN (optional, future) | **Cloudflare** (free tier) | Add in front of Render if expanding beyond Dallas |
