@@ -29,6 +29,8 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
 
+  const [statusError, setStatusError] = useState('');
+
   const fetchInvoices = () => {
     const params = filter ? `?status=${filter}` : '';
     api.get(`/invoices${params}`)
@@ -38,21 +40,33 @@ export default function InvoicesPage() {
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const updateStatus = async (id: number, status: string) => {
     try {
+      setStatusError('');
       await api.patch(`/invoices/${id}/status`, { status });
       fetchInvoices();
     } catch {
-      alert('Failed to update status');
+      setStatusError('Failed to update invoice status');
     }
   };
 
-  const downloadPDF = (id: number) => {
-    window.open(`/api/invoices/${id}/pdf`, '_blank');
+  const downloadPDF = async (id: number) => {
+    try {
+      const res = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setStatusError('Failed to download PDF');
+    }
   };
 
   if (loading) return <p className="text-gray-500">Loading invoices...</p>;
@@ -76,6 +90,10 @@ export default function InvoicesPage() {
           <option value="OVERDUE">Overdue</option>
         </select>
       </div>
+
+      {statusError && (
+        <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{statusError}</div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-6">

@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import api from '../lib/api';
+import api, { getErrorMessage } from '../lib/api';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [message, setMessage] = useState('');
@@ -17,15 +17,10 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       await api.patch(`/users/${user?.id}`, { name, phone });
+      updateUser({ name, phone });
       setMessage('Profile updated successfully');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Update failed';
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        setError(axiosErr.response?.data?.error || message);
-      } else {
-        setError(message);
-      }
+      setError(getErrorMessage(err, 'Update failed'));
     } finally {
       setLoading(false);
     }

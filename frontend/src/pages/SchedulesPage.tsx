@@ -29,6 +29,7 @@ export default function SchedulesPage() {
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusError, setStatusError] = useState('');
 
   const fetchSchedules = () => {
     let endpoint = '/schedules';
@@ -48,10 +49,11 @@ export default function SchedulesPage() {
 
   const updateStatus = async (id: number, status: string) => {
     try {
+      setStatusError('');
       await api.patch(`/schedules/${id}/status`, { status });
       fetchSchedules();
     } catch {
-      alert('Failed to update status');
+      setStatusError('Failed to update schedule status');
     }
   };
 
@@ -81,6 +83,10 @@ export default function SchedulesPage() {
           </Link>
         )}
       </div>
+
+      {statusError && (
+        <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">{statusError}</div>
+      )}
 
       {/* Legend */}
       <div className="flex gap-4 mb-4 text-sm">

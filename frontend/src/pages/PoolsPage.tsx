@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import api from '../lib/api';
+import api, { getErrorMessage } from '../lib/api';
 
 interface Pool {
   id: number;
@@ -61,12 +61,7 @@ export default function PoolsPage() {
       resetForm();
       fetchPools();
     } catch (err: unknown) {
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        setError(axiosErr.response?.data?.error || 'Operation failed');
-      } else {
-        setError('Operation failed');
-      }
+      setError(getErrorMessage(err, 'Operation failed'));
     }
   };
 

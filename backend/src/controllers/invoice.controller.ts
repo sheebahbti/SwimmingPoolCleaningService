@@ -17,7 +17,7 @@ const invoiceInclude = {
 export async function listInvoices(req: Request, res: Response): Promise<void> {
   try {
     const { status } = req.query;
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (status) where.status = status;
 
@@ -38,7 +38,7 @@ export async function listInvoices(req: Request, res: Response): Promise<void> {
   }
 }
 
-// GET /api/invoices/:id — Single invoice
+// GET /api/invoices/:id — Single invoice (scoped by role)
 export async function getInvoice(req: Request, res: Response): Promise<void> {
   try {
     const invoice = await prisma.invoice.findUnique({
@@ -48,6 +48,12 @@ export async function getInvoice(req: Request, res: Response): Promise<void> {
 
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+
+    // Customers can only view their own invoices
+    if (req.user!.role === 'CUSTOMER' && invoice.schedule.customer.id !== req.user!.userId) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -80,8 +86,8 @@ export async function createInvoice(req: Request, res: Response): Promise<void> 
     });
 
     res.status(201).json(invoice);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
+  } catch (error: unknown) {
+    if (error instanceof Object && 'code' in error && error.code === 'P2002') {
       res.status(409).json({ error: 'Invoice already exists for this schedule' });
       return;
     }

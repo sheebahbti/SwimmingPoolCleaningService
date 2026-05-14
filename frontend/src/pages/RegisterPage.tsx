@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../lib/api';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -17,13 +18,7 @@ export default function RegisterPage() {
       await register(form);
       navigate('/login');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        setError(axiosErr.response?.data?.error || message);
-      } else {
-        setError(message);
-      }
+      setError(getErrorMessage(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ export interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; name: string; phone: string; password: string }) => Promise<void>;
+  updateUser: (updates: Partial<Pick<User, 'name' | 'phone'>>) => void;
   logout: () => void;
   loading: boolean;
 }

@@ -1,5 +1,14 @@
 import nodemailer from 'nodemailer';
 
+// Escape HTML special characters to prevent XSS in email templates
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // Create reusable transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -65,13 +74,13 @@ export async function sendAppointmentConfirmation(
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #0066cc;">Appointment Confirmed!</h1>
-      <p>Hi ${customerName},</p>
+      <p>Hi ${escapeHtml(customerName)},</p>
       <p>Your pool cleaning appointment has been scheduled.</p>
       
       <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>📅 Date:</strong> ${formattedDate}</p>
-        <p><strong>👷 Technician:</strong> ${technicianName}</p>
-        <p><strong>📍 Pool Address:</strong> ${poolAddress}</p>
+        <p><strong>👷 Technician:</strong> ${escapeHtml(technicianName)}</p>
+        <p><strong>📍 Pool Address:</strong> ${escapeHtml(poolAddress)}</p>
       </div>
       
       <p>Please ensure someone is available to provide access to the pool area.</p>
@@ -112,13 +121,13 @@ export async function sendAppointmentReminder(
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #f59e0b;">⏰ Appointment Tomorrow!</h1>
-      <p>Hi ${customerName},</p>
+      <p>Hi ${escapeHtml(customerName)},</p>
       <p>This is a friendly reminder that your pool cleaning appointment is <strong>tomorrow</strong>.</p>
 
       <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
         <p><strong>📅 Date:</strong> ${formattedDate}</p>
-        <p><strong>👷 Technician:</strong> ${technicianName}</p>
-        <p><strong>📍 Pool Address:</strong> ${poolAddress}</p>
+        <p><strong>👷 Technician:</strong> ${escapeHtml(technicianName)}</p>
+        <p><strong>📍 Pool Address:</strong> ${escapeHtml(poolAddress)}</p>
       </div>
 
       <p>Please ensure someone is available to provide access to the pool area.</p>
@@ -148,15 +157,15 @@ export async function sendDailyScheduleSummary(
   const jobRows = jobs.map(
     (j) => `<tr>
       <td style="padding: 8px; border-bottom: 1px solid #eee;">${j.time}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${j.address}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${j.customerName}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(j.address)}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(j.customerName)}</td>
     </tr>`
   ).join('');
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #0066cc;">📋 Your Schedule for ${date}</h1>
-      <p>Hi ${techName},</p>
+      <h1 style="color: #0066cc;">📋 Your Schedule for ${escapeHtml(date)}</h1>
+      <p>Hi ${escapeHtml(techName)},</p>
       <p>You have <strong>${jobs.length} appointment${jobs.length !== 1 ? 's' : ''}</strong> today.</p>
 
       <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -192,7 +201,7 @@ export async function sendReEngagementEmail(
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #0066cc;">🏊 We Miss You!</h1>
-      <p>Hi ${customerName},</p>
+      <p>Hi ${escapeHtml(customerName)},</p>
       <p>It's been <strong>${daysSinceLastService} days</strong> since your last pool cleaning. 
          Regular maintenance keeps your pool safe and sparkling!</p>
 

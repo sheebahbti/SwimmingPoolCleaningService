@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 
+const DEFAULT_SERVICE_PRICE = 150.00;
+const INVOICE_DUE_DAYS = 14;
+
 // POST /api/maintenance — Log work done after an appointment
 export async function createMaintenanceRecord(req: Request, res: Response): Promise<void> {
   try {
@@ -28,15 +31,15 @@ export async function createMaintenanceRecord(req: Request, res: Response): Prom
       data: { status: 'COMPLETED' },
     });
 
-    // Auto-generate invoice (default $150, due in 14 days)
+    // Auto-generate invoice
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 14);
+    dueDate.setDate(dueDate.getDate() + INVOICE_DUE_DAYS);
 
     try {
       await prisma.invoice.create({
         data: {
           scheduleId,
-          amount: 150.00,
+          amount: DEFAULT_SERVICE_PRICE,
           dueDate,
         },
       });
@@ -47,8 +50,8 @@ export async function createMaintenanceRecord(req: Request, res: Response): Prom
     }
 
     res.status(201).json(record);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
+  } catch (error: unknown) {
+    if (error instanceof Object && 'code' in error && error.code === 'P2002') {
       res.status(409).json({ error: 'Maintenance record already exists for this schedule' });
       return;
     }

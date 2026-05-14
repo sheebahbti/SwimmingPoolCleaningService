@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import { Link, useNavigate } from 'react-router-dom';
+import api, { getErrorMessage } from '../lib/api';
 
 interface Pool {
   id: number;
@@ -45,7 +45,7 @@ export default function BookingPage() {
     }
 
     try {
-      const dateTime = `${form.date}T${form.time}:00Z`;
+      const dateTime = `${form.date}T${form.time}:00`;
       await api.post('/schedules', {
         poolId: parseInt(form.poolId),
         technicianId: parseInt(form.technicianId),
@@ -54,12 +54,7 @@ export default function BookingPage() {
       });
       navigate('/schedules');
     } catch (err: unknown) {
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        setError(axiosErr.response?.data?.error || 'Booking failed');
-      } else {
-        setError('Booking failed');
-      }
+      setError(getErrorMessage(err, 'Booking failed'));
     } finally {
       setLoading(false);
     }
@@ -81,9 +76,9 @@ export default function BookingPage() {
         {pools.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">You need to add a pool before booking.</p>
-            <a href="/pools" className="text-blue-600 text-sm hover:underline mt-2 inline-block">
+            <Link to="/pools" className="text-blue-600 text-sm hover:underline mt-2 inline-block">
               Add a pool →
-            </a>
+            </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

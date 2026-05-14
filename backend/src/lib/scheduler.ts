@@ -14,8 +14,8 @@ import {
 async function sendAppointmentReminders(): Promise<void> {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const startOfDay = new Date(tomorrow.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(tomorrow.setHours(23, 59, 59, 999));
+  const startOfDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0, 0, 0, 0);
+  const endOfDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59, 999);
 
   const schedules = await prisma.schedule.findMany({
     where: {
@@ -48,8 +48,8 @@ async function sendAppointmentReminders(): Promise<void> {
  */
 async function sendDailySchedules(): Promise<void> {
   const today = new Date();
-  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
   const schedules = await prisma.schedule.findMany({
     where: {

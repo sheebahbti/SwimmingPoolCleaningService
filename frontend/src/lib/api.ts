@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -24,5 +24,19 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Extract a user-friendly error message from a caught error.
+ * Works with Axios errors, Error instances, and unknown types.
+ */
+export function getErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (isAxiosError(err)) {
+    return err.response?.data?.error || fallback;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
+}
 
 export default api;

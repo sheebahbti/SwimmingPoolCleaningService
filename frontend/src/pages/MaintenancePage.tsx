@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import api, { getErrorMessage } from '../lib/api';
 
 interface ScheduleInfo {
   id: number;
@@ -40,7 +40,10 @@ export default function MaintenancePage() {
       return;
     }
     setFile(file);
-    setPreview(URL.createObjectURL(file));
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     setError('');
   };
 
@@ -79,8 +82,8 @@ export default function MaintenancePage() {
       });
 
       navigate('/schedules');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to submit maintenance record');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to submit maintenance record'));
     } finally {
       setSubmitting(false);
     }

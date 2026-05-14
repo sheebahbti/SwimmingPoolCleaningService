@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../lib/api';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -18,13 +19,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { error?: string } } };
-        setError(axiosErr.response?.data?.error || message);
-      } else {
-        setError(message);
-      }
+      setError(getErrorMessage(err, 'Login failed'));
     } finally {
       setLoading(false);
     }
