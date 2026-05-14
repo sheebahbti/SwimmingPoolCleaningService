@@ -20,14 +20,14 @@
        └────────┬────────┘
                 │
        ┌────────▼────────┐
-       │   Vercel CDN    │  ← Static assets (JS, CSS, images)
-       │   (Frontend)    │    React SPA served from edge
-       └────────┬────────┘
-                │ API calls
-                │
-       ┌────────▼────────┐
-       │   App Server    │  ← Node.js + Express (TypeScript)
-       │   (Railway)     │    Single instance, stateless
+       │   Railway       │  ← Single service: Express serves both
+       │   (App Server)  │    API endpoints + React static files
+       │                 │
+       │  React SPA      │  ← Built frontend served via express.static
+       │  (static files) │    SPA catch-all for client-side routing
+       │                 │
+       │  Express API    │  ← /api/* routes for backend logic
+       │  (REST)         │    Authentication, business logic, validation
        │                 │
        │  ┌───────────┐  │
        │  │ node-cron │  │  ← Scheduled tasks running inside the server
@@ -58,24 +58,26 @@ Cron schedule:
 - No load balancer needed — one app server handles this traffic easily
 - No Redis needed — JWT is stateless (no server-side session storage), and express-rate-limit handles rate limiting in-memory
 - No read replicas needed — PostgreSQL handles this read volume on a single instance
+- No separate CDN needed — all users are in Dallas; Express serves static files fast enough for a local business
 - See [TechnologyChoices.md](TechnologyChoices.md) for detailed rationale
+
+**Why a single service (not Railway + Vercel)?**
+- All users are in the Dallas metro area — a global CDN provides no meaningful benefit
+- One deploy, one URL, one set of environment variables — simpler to manage and debug
+- No CORS configuration needed — frontend and API are same-origin (`/api` calls, no cross-origin)
+- One set of logs, one dashboard — when something breaks, you look in one place
+- If the business expands beyond Dallas later, add Cloudflare (free) in front of Railway for CDN caching
 
 ---
 
 ## Component Breakdown
 
-### 1. Frontend — Vercel CDN
+### 1. App Server — Node.js + Express (Railway)
 
-- **What:** React SPA (TypeScript + Tailwind CSS) deployed on Vercel
-- **Why:** Vercel serves static assets from edge nodes close to Dallas users. Reduces latency and offloads traffic from the app server.
-- **Handles:** JS/CSS bundles, images, client-side routing
-- **Cost:** Free tier
-
-### 2. App Server — Node.js + Express (Railway)
-
-- **What:** Single Node.js + Express server (TypeScript)
+- **What:** Single Node.js + Express server (TypeScript) that serves both the API and the React frontend
 - **Stateless:** No session data on the server — JWT tokens carry auth state
-- **Handles:** REST API, business logic, authentication, input validation
+- **Handles:** REST API (`/api/*` routes), business logic, authentication, input validation, and serving the built React SPA (static files via `express.static`)
+- **SPA routing:** A catch-all route serves `index.html` for any non-API path, so client-side routing (React Router) works correctly
 - **Why single server:** At ~20–200 concurrent users, one server has plenty of capacity. Add a second server only if response times degrade.
 - **Cost:** Railway free tier → ~$5–$10/month on Pro
 
@@ -119,12 +121,15 @@ Cron schedule:
 ## Data Flow — Booking an Appointment
 
 ```
-Customer → Vercel CDN → App Server (Railway)
-                             │
-                             ├─→ PostgreSQL (check available slots)
-                             ├─→ PostgreSQL (write booking record)
-                             ├─→ Nodemailer (confirmation email)
-                             └─→ Twilio (SMS reminder queued)
+Customer → App Server (Railway)
+                │
+                ├─→ Serves React SPA (static files, first load only)
+                ├─→ POST /api/bookings
+                │     ├─→ PostgreSQL (check available slots)
+                │     ├─→ PostgreSQL (write booking record)
+                │     ├─→ Nodemailer (confirmation email)
+                │     └─→ Twilio (SMS reminder queued)
+                └─→ JSON response → React updates UI
 ```
 
 ---
@@ -134,14 +139,14 @@ Customer → Vercel CDN → App Server (Railway)
 ### Development (Local Storage)
 
 ```
-Technician → Vercel CDN → App Server (Railway)
-                               │
-                               ├─→ multer middleware (parses multipart/form-data)
-                               ├─→ Saves file to backend/uploads/ folder
-                               ├─→ Returns URL: /uploads/abc123.jpg
-                               │
-                               ├─→ POST /api/maintenance (with photo URLs)
-                               └─→ PostgreSQL (store photo URL in MaintenanceRecord)
+Technician → App Server (Railway)
+                  │
+                  ├─→ multer middleware (parses multipart/form-data)
+                  ├─→ Saves file to backend/uploads/ folder
+                  ├─→ Returns URL: /uploads/abc123.jpg
+                  │
+                  ├─→ POST /api/maintenance (with photo URLs)
+                  └─→ PostgreSQL (store photo URL in MaintenanceRecord)
 
 Viewing photos:
 Browser → GET /uploads/abc123.jpg → express.static serves file from disk
@@ -150,14 +155,14 @@ Browser → GET /uploads/abc123.jpg → express.static serves file from disk
 ### Production (Cloudflare R2)
 
 ```
-Technician → Vercel CDN → App Server (Railway)
-                               │
-                               ├─→ Generate pre-signed R2 upload URL
-                               │
+Technician → App Server (Railway)
+                  │
+                  ├─→ Generate pre-signed R2 upload URL
+                  │
 Technician ───────────────→ Cloudflare R2 (direct upload, app server not involved)
-                               │
-                               ├─→ POST /api/maintenance (with R2 URLs)
-                               └─→ PostgreSQL (store R2 URL in MaintenanceRecord)
+                  │
+                  ├─→ POST /api/maintenance (with R2 URLs)
+                  └─→ PostgreSQL (store R2 URL in MaintenanceRecord)
 
 Viewing photos:
 Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
@@ -167,21 +172,21 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 ## Security Architecture
 
-- **SSL/TLS everywhere** — HTTPS enforced by Vercel and Railway
+- **SSL/TLS everywhere** — HTTPS enforced by Railway (auto-provisioned certificates)
 - **JWT tokens** — Short-lived access tokens (15 min) + refresh tokens (7 days), stored in httpOnly cookies
 - **Input validation** — Zod schemas on every API endpoint
 - **Rate limiting** — express-rate-limit middleware (in-memory, per-IP)
 - **Pre-signed URLs** — Photos uploaded directly to S3/R2, never passing through app server
 - **Database** — Parameterized queries via Prisma (SQL injection prevention)
 - **Secrets** — Environment variables managed by Railway, never committed to repo
-- **CORS** — Restricted to Vercel frontend domain only
+- **CORS** — Not needed (frontend and API are same-origin); configured as fallback for development
 
 ---
 
 ## Availability & Reliability
 
 - **Uptime target:** 99.9% (< 9 hours downtime/year)
-- **Health checks:** Railway monitors `/health` endpoint
+- **Health checks:** Railway monitors `/api/health` endpoint
 - **Database backups:** Railway automated daily snapshots, 7-day retention
 - **Monitoring:** Sentry (error tracking), Railway metrics (CPU, memory, response times)
 - **Logging:** Structured JSON logs via Pino or Winston
@@ -192,11 +197,10 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 | Component | Service | Est. Monthly Cost |
 |---|---|---|
-| Frontend hosting | Vercel (free tier) | $0 |
-| App Server | Railway (free → Pro) | $0–$10 |
+| App Server + Frontend | Railway (free → Pro) | $0–$10 |
 | PostgreSQL | Railway (free → Pro) | $0–$10 |
 | Object Storage | Cloudflare R2 (free tier) | $0 |
-| Domain + SSL | Vercel / Cloudflare | $0–$12/year |
+| Domain + SSL | Cloudflare (free) / Railway | $0–$12/year |
 | **Total** | | **$0–$25/month** |
 
 > **When to upgrade:** If response times exceed 500ms consistently or Railway free tier limits are hit, move to Railway Pro (~$20/month total for server + DB). See [TechnologyChoices.md — Scaling Strategy](TechnologyChoices.md) for what to add at each growth stage.
@@ -209,7 +213,7 @@ Browser → GET https://r2.poolservice.com/abc123.jpg → R2 CDN serves file
 
 Instead of loading a new HTML page every time you click a link, a React SPA loads **one HTML page once**, then JavaScript handles all navigation and content updates without full page reloads.
 
-- Browser downloads the React app (JS/CSS bundle) once from Vercel
+- Browser downloads the React app (JS/CSS bundle) once from the Railway server
 - User clicks "Appointments" → React swaps content on screen instantly (no server round-trip for a new page)
 - Only **data** is fetched from the API server (JSON) — not entire HTML pages
 - Page transitions feel instant (no white-screen flicker)
@@ -231,17 +235,11 @@ For this app: technicians use the PWA on their phones to view schedules, upload 
 
 A network of servers spread across the world that deliver your files from the location closest to the user.
 
-**For this app (single region, Dallas):** The CDN benefit is minimal — all users are local. We use Vercel primarily for its **free hosting and auto-deploy pipeline**, not for the CDN. The CDN is a bonus that comes along for the ride.
+**For this app (single region, Dallas):** We don't use a separate CDN. All users are in the Dallas metro area, so serving static files directly from Railway is fast enough. The React SPA is ~500KB — it loads in under a second.
 
-| What Vercel gives us | Why we actually use it |
-|---|---|
-| Push to GitHub → auto-deploys | **Main reason** — zero-config deployment |
-| Free hosting for React apps | **$0/month** |
-| Preview URLs for every PR | Team can review before merging |
-| Free SSL certificates | HTTPS with zero config |
-| Edge caching (CDN) | Barely matters for single-region |
+**If we need a CDN later:** Put Cloudflare (free tier) in front of the Railway URL. This gives global edge caching, DDoS protection, and free SSL — takes about 5 minutes to set up. Worth doing if the business expands beyond Dallas.
 
-**Alternatives:** Netlify, Cloudflare Pages, AWS Amplify, Firebase Hosting
+**CDN alternatives:** Cloudflare (free), AWS CloudFront, Fastly
 
 ### What is an App Server?
 
@@ -257,38 +255,42 @@ The computer that runs your backend code. When a user books an appointment, thei
 
 A cloud platform that runs your code — like renting a computer in the cloud. You push code to GitHub → Railway auto-deploys it and gives your server a public URL.
 
-**We use Railway for two things:**
+**We use Railway for three things:**
 
 | What | Why |
 |---|---|
 | App Server (Node.js + Express) | Runs backend API code |
+| React Frontend (static files) | Served by Express via `express.static` — same server, same URL |
 | PostgreSQL Database | Stores all data (customers, pools, appointments, invoices) |
 
-**Why both on Railway:** Same platform = one dashboard, one bill, and low latency between server and database (~1-2ms since they're in the same data center).
+**Why everything on Railway:** Same platform = one dashboard, one bill, one URL, one deploy, and low latency between server and database (~1-2ms since they're in the same data center). No CORS configuration needed since frontend and API share the same origin.
 
 **Alternatives:** Render, Fly.io, Heroku (no free tier), AWS EC2, DigitalOcean
 
-### CDN vs. App Server — Why You Need Both
+### How One Server Handles Both Frontend and API
 
-| | CDN (Vercel) | App Server (Railway) |
-|---|---|---|
-| **Serves** | Static files (HTML, CSS, JS, images) | Dynamic logic (API requests, database queries) |
-| **Can run code?** | No (just delivers files) | Yes (Node.js, Express, business logic) |
-| **Database access?** | No | Yes (connects to PostgreSQL) |
-| **Processes bookings?** | No | Yes |
-| **Sends emails/SMS?** | No | Yes |
+Our Express server does double duty:
 
-**Analogy:** CDN = a vending machine (hands out pre-made items). App Server = the kitchen (takes orders, processes them, talks to the database).
+| Request | What Happens |
+|---|---|
+| `GET /` (or any non-API path) | Express serves the built React SPA (`frontend/dist/index.html`) via `express.static` |
+| `GET /api/pools` | Express routes to the API controller, queries PostgreSQL, returns JSON |
+| `POST /api/bookings` | Express validates input, writes to DB, sends email, returns JSON |
+| `GET /assets/main.js` | Express serves the static JS bundle from `frontend/dist/assets/` |
+
+**How it works:** The build step compiles the React app into static files (`frontend/dist/`). Express serves these files and uses a catch-all route so that React Router handles all client-side navigation. API routes (`/api/*`) are registered first and take priority.
+
+**Analogy:** One restaurant where the front counter (static files) and the kitchen (API) are in the same building — no delivery driver needed between them.
 
 ### Where Everything Is Hosted — Summary
 
 | Component | Hosted On | Why There |
 |---|---|---|
-| React frontend | **Vercel** | Free, auto-deploy, optimized for static sites |
-| App Server (Express API) | **Railway** | Free tier, auto-deploy, same platform as DB |
+| React frontend + Express API | **Railway** (single service) | One deploy, one URL, no CORS — simplest setup for a local business |
 | PostgreSQL database | **Railway** | Co-located with app server for low latency |
 | Pool photos (dev) | **Local disk** | Zero setup, testing file upload logic |
 | Pool photos (prod) | **Cloudflare R2** | $0 egress fees, free tier never expires |
 | Email delivery | **Mailtrap** (testing) / **SendGrid** (production) | Test emails safely before going live |
 | SMS delivery | **Twilio** | SMS delivery service |
 | Payment processing | **Stripe** | PCI-compliant payment processor |
+| CDN (optional, future) | **Cloudflare** (free tier) | Add in front of Railway if expanding beyond Dallas |

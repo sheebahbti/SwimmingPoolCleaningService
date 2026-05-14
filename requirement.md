@@ -10,7 +10,7 @@
 | Email | Nodemailer + Mailtrap (testing) / SendGrid (production) | Test emails safely, reliable delivery |
 | Payments | Stripe | PCI compliant, best developer experience |
 | File Storage | Local disk (dev) / Cloudflare R2 (production) | $0 egress, free tier never expires, S3-compatible |
-| Hosting | Railway (backend) / Vercel (frontend) | Free tier, auto-deploy from GitHub |
+| Hosting | Railway (single service — backend + frontend + DB) | Free tier, auto-deploy from GitHub |
 | Database Hosting | Railway PostgreSQL | Co-located with backend, low latency |
 
 ---
@@ -149,13 +149,12 @@ App calls GET /api/schedules?userId={id}
 
 ## Phase 9: Deployment
 
-- Deploy backend to **Railway** (Node.js runtime, managed SSL, auto-deploy)
-- Deploy frontend (React) to **Vercel** (free tier, CDN included)
+- Deploy backend + frontend as a **single Railway service** (Express serves both API and built React static files)
 - Use **Railway PostgreSQL** for production DB
 - Use **Cloudflare R2** for photo storage (local disk for development)
-- Store all secrets in Railway/Vercel environment variables — never hardcode
-- Set up custom domain with HTTPS (free SSL from Railway/Vercel)
-- Set up CI/CD pipeline with **GitHub → Railway/Vercel** (auto-deploy on push to `main`)
+- Store all secrets in Railway environment variables — never hardcode
+- Set up custom domain with HTTPS (free SSL from Railway)
+- Set up CI/CD pipeline with **GitHub → Railway** (auto-deploy on push to `main`)
 
 ---
 

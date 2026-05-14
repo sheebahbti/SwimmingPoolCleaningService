@@ -197,13 +197,18 @@ npm install multer              # For handling file uploads in Express
 
 ---
 
-## Deployment: Vercel + Railway/Render
+## Deployment: Railway (Single Service)
 
 | Component | Platform | Why |
 |---|---|---|
-| React frontend | Vercel | First-class React/Next.js support, global CDN, instant deploys from GitHub |
-| Express backend | Railway or Render | Managed Node.js hosting, zero-config deploys, free tier |
-| PostgreSQL | Railway or Render | Managed database with automated backups, included in same platform as backend |
+| Express backend + React frontend | Railway | Single service — Express serves both API and built React static files. One deploy, one URL, no CORS. |
+| PostgreSQL | Railway | Managed database with automated backups, same platform as app server (low latency) |
+
+**Why a single Railway service (not Railway + Vercel)?**
+- All users are in Dallas — a global CDN provides no meaningful benefit for a local business
+- One deploy, one URL, one set of environment variables — simpler to manage and debug
+- No CORS configuration — frontend and API are same-origin
+- If expanding beyond Dallas later, add Cloudflare (free) in front of Railway for CDN caching
 
 ### Why NOT Azure/AWS?
 
@@ -221,7 +226,7 @@ npm install multer              # For handling file uploads in Express
 | **Caching** | None needed | Redis required (edge cache per region for low-latency reads) |
 | **Auth/Sessions** | JWT (stateless — no session store) | JWT still works (no change needed) |
 | **Backend** | Single Node.js instance on Railway/Render | Multiple instances per region behind a global load balancer (AWS ALB, Cloudflare) |
-| **Frontend/CDN** | Vercel Edge (already global) | No change — Vercel/Cloudflare already serves static assets globally |
+| **Frontend/CDN** | Add Cloudflare (free) in front of Railway | Cloudflare caches static assets globally — add only if expanding beyond Dallas |
 | **DNS** | Simple DNS | Geo-DNS routing (Route 53, Cloudflare) to route users to nearest region |
 | **Hosting** | Railway/Render (simple, cheap) | AWS / Azure / GCP (multi-region infrastructure required) |
 | **Notifications** | Nodemailer + Twilio | No change (API calls are region-agnostic) |
@@ -262,4 +267,4 @@ npm install multer              # For handling file uploads in Express
 | Backend | Node.js + Express | One language (TS), fast development, cheap hosting |
 | Frontend | React + Tailwind | Component reuse, type safety, rapid UI |
 | Auth | Passport.js + JWT | Stateless, simple, no external dependencies |
-| Hosting | Vercel + Railway | Cheap, simple, GitHub-integrated |
+| Hosting | Railway (single service) | Cheap, simple, GitHub-integrated |

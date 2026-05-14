@@ -1,8 +1,8 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd backend && npm ci && npm run build"
+buildCommand = "cd frontend && npm ci && npm run build && cd ../backend && npm ci && npm run build"
 
 [deploy]
-startCommand = "cd backend && node dist/index.js"
-healthcheckPath = "/health"
+startCommand = "cd backend && npx prisma migrate deploy && node dist/index.js"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 30

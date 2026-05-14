@@ -1,16 +1,68 @@
-﻿# SwimmingPoolCleaningService
+﻿# Swimming Pool Cleaning Service
 
-This project provides a service for managing swimming pool cleaning operations.
+A full-stack scheduling and business management platform for a local pool cleaning company in Dallas, TX. Built to solve real operational problems: appointment booking, technician dispatch, maintenance tracking, photo documentation, invoicing, and automated customer communications.
+
+> **Live Demo:** [https://your-app.up.railway.app](https://your-app.up.railway.app) *(update with your Railway URL)*
+>
+> **Demo Video:** [Watch the full walkthrough](#) *(add link after recording)*
+
+## Why This Project
+
+I built this to demonstrate end-to-end full-stack development — from system design through deployment — solving a real-world business problem. Every decision (tech stack, architecture, database schema) is documented with rationale.
+
+### Architecture
+
+```
+Browser → Railway (single service)
+              ├── React SPA (static files via express.static)
+              ├── Express API (/api/* routes)
+              ├── node-cron (scheduled jobs)
+              └── PostgreSQL (Railway managed DB)
+```
+
+Single-service deployment: Express serves both the API and the built React frontend from one Railway instance. No CORS, one URL, one deploy. See [SystemDesign.md](SystemDesign.md) for the full architecture document.
+
+### Key Technical Decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| Single service vs. separate frontend/backend | Single Railway service | All users in Dallas — no CDN benefit. Simpler ops, no CORS. [Details](SystemDesign.md) |
+| SQL vs. NoSQL | PostgreSQL | Relational data (users → pools → appointments → invoices). ACID needed for payments. [Details](TechnologyChoices.md) |
+| Auth approach | JWT + bcrypt (no session store) | Stateless — no Redis needed at this scale. [Details](TechnologyChoices.md) |
+| File storage | Local disk (dev) → Cloudflare R2 (prod) | R2 has $0 egress, free tier never expires. [Details](SystemDesign.md#4-object-storage--pool-photos) |
 
 ## Features
 
-- Schedule cleaning appointments
-- Track maintenance records
-- Manage customer information
-- Upload before/after pool photos
-- Automated email reminders (appointment, daily summary, re-engagement)
-- Invoicing with PDF generation and Stripe payments
-- Overdue invoice detection and reminders
+- **Role-based access** — Admin, Technician, and Customer dashboards with distinct permissions
+- **Appointment scheduling** — FullCalendar-powered booking with technician assignment
+- **Maintenance tracking** — Technicians log work with before/after photo uploads
+- **Automated emails** — Appointment reminders, daily tech summaries, re-engagement campaigns (node-cron + Nodemailer)
+- **Invoicing** — Auto-generated on job completion, PDF download (PDFKit), Stripe payment integration
+- **Overdue detection** — Daily cron marks past-due invoices and sends payment reminders
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Tailwind CSS, FullCalendar, Axios |
+| Backend | Node.js, Express 5, TypeScript, Passport.js + JWT |
+| Database | PostgreSQL, Prisma ORM |
+| Payments | Stripe (PaymentIntent flow) |
+| Email | Nodemailer (Mailtrap for testing) |
+| File Upload | Multer (local dev), Cloudflare R2 (production) |
+| Deployment | Railway (single service), Nixpacks |
+
+## Documentation
+
+This project includes extensive design documentation:
+
+| Document | What It Covers |
+|---|---|
+| [SystemDesign.md](SystemDesign.md) | Architecture, data flows, security, cost analysis, key concepts explained |
+| [TechnologyChoices.md](TechnologyChoices.md) | Tech stack decisions with rationale, scaling strategy, NoSQL comparison |
+| [DatabaseAndAPIDesign.md](DatabaseAndAPIDesign.md) | Schema design, ER relationships, REST API contract |
+| [ImplementationPhases.md](ImplementationPhases.md) | 11-phase build plan, team structure, timeline estimates |
+| [requirement.md](requirement.md) | Functional requirements by feature area |
 
 ## Installation
 
@@ -78,14 +130,40 @@ Open http://localhost:5173 in your browser.
 - **Technician** — View assigned jobs, start/complete jobs, upload before/after photos, log maintenance
 - **Admin** — Manage all users, view all appointments, manage all pools, manage invoices
 
-## Contributing
+## Project Structure
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a pull request
+```
+├── backend/
+│   ├── src/
+│   │   ├── controllers/    # Route handlers (auth, pools, schedules, invoices, etc.)
+│   │   ├── middleware/      # JWT authentication middleware
+│   │   ├── routes/          # Express route definitions
+│   │   └── lib/             # Shared services (email, PDF, Stripe, scheduler, Prisma)
+│   └── prisma/              # Schema + migrations
+├── frontend/
+│   └── src/
+│       ├── pages/           # React pages (Dashboard, Booking, Invoices, etc.)
+│       ├── components/      # Layout, ProtectedRoute
+│       ├── context/         # Auth context + types
+│       └── lib/             # Axios API client
+├── SystemDesign.md          # Architecture & design decisions
+├── TechnologyChoices.md     # Tech stack rationale
+├── ImplementationPhases.md  # Build phases & timeline
+└── railway.toml             # Railway deployment config
+```
+
+## Deployment
+
+Deployed as a single Railway service (Express serves both API + React static files).
+
+```bash
+# railway.toml handles everything:
+# Build:  frontend (npm ci + build) → backend (npm ci + build)
+# Start:  prisma migrate deploy → node dist/index.js
+```
+
+See [ImplementationPhases.md — Phase 11](ImplementationPhases.md#phase-11--deployment--go-live) for full deployment guide.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT

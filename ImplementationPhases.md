@@ -6,7 +6,7 @@
 
 See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, rationale, NoSQL comparison, and scaling strategy.
 
-**Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Vercel + Railway.
+**Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Railway.
 
 ---
 
@@ -17,7 +17,7 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 - **Full-Stack Developer (2)** — Node.js/Express backend + React frontend; both should be strong in TypeScript
 - **UI/UX Designer (1, ~50%)** — Designs customer-facing booking flow, technician mobile views, and admin dashboard
 - **QA Engineer (1)** — Manual + automated testing; writes integration tests from Phase 4 onward
-- **DevOps / Cloud Engineer (0.5, part-time)** — Sets up CI/CD pipeline, deployment to Railway/Vercel, database backups
+- **DevOps / Cloud Engineer (0.5, part-time)** — Sets up CI/CD pipeline, deployment to Railway, database backups
 
 **Total team: 6.5 people (4.75 FTE)**
 
@@ -37,7 +37,7 @@ See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, 
 - Design REST API contract (endpoints, request/response schemas, status codes)
 - Define authentication & authorization flows (roles: Admin, Technician, Customer)
 - Plan database schema with Prisma models, relationships, and indexes
-- Document deployment architecture (Vercel + Railway/Render topology)
+- Document deployment architecture (Railway single-service topology)
 - Identify non-functional requirements: performance targets, uptime SLA, data retention policy
 - Produce wireframes / mockups for key screens (booking flow, calendar, dashboard)
 
@@ -160,69 +160,74 @@ Before deployment (local only):
   Your laptop → backend (port 3000) + frontend (port 5174) + PostgreSQL
 
 After deployment (live on the internet):
-  Railway (cloud) → Express backend + PostgreSQL database → public URL
-  Vercel  (cloud) → React frontend → public URL
+  Railway (cloud) → Express backend + React frontend + PostgreSQL database → one public URL
   Anyone in the world can use the app
 ```
 
-### Why two separate services?
+### Why one service (not Railway + Vercel)?
 
-| Service | What it runs | Why that service |
-|---|---|---|
-| **Railway** | Node.js backend + PostgreSQL | Designed for servers — always-on, runs Node.js + databases |
-| **Vercel** | React frontend (static files) | Designed for frontends — free, global CDN, auto-deploys on git push |
+| Concern | Answer |
+|---|---|
+| **Don't I need a CDN?** | No — all users are in Dallas. A React SPA is ~500KB and loads in under a second from Railway. Add Cloudflare (free) later if expanding beyond Dallas. |
+| **Don't I need separate deploys?** | Not at this scale. One git push deploys both frontend and API. Simpler to manage. |
+| **What about CORS?** | Not needed. Frontend and API are same-origin (same URL), so no cross-origin issues at all. |
+| **What if I need to scale later?** | Split frontend to Vercel/Cloudflare Pages when you expand beyond Dallas or hire a separate frontend team. The code already supports it (`VITE_API_URL` env var). |
 
-### Step-by-step: Deploy backend to Railway
+### Step-by-step: Deploy to Railway
 
 1. Go to **railway.app** → **New Project** → **Deploy from GitHub repo**
-2. Select `SwimmingPoolCleaningService`
-3. Railway creates a service → click it → **Settings** → set **Root Directory** to `backend`
-4. Railway runs `npm run build` (compiles TypeScript → JavaScript) then `npm start`
-5. In the same project: **+ New** → **Database** → **PostgreSQL** → Railway auto-sets `DATABASE_URL`
-6. Go to backend service → **Variables** tab → add:
-   - `JWT_SECRET` — any long random string
-   - `FRONTEND_URL` — `*` for now (update after Vercel deploy)
-   - `SMTP_*` — your Mailtrap credentials (or skip)
+2. Select `SwimmingPoolCleaningService` — Railway will use the `railway.toml` config at the repo root
+3. In the same project: **+ New** → **Database** → **PostgreSQL**
+4. Link the PostgreSQL service to your app service — Railway auto-sets `DATABASE_URL` via reference variable `${{Postgres.DATABASE_URL}}`
+5. Go to your app service → **Variables** tab → add:
+   - `JWT_SECRET` — a strong random string (`openssl rand -hex 32`)
+   - `FRONTEND_URL` — your Railway public URL (e.g. `https://your-app.up.railway.app`)
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — email credentials (or skip for now)
+   - `STRIPE_SECRET_KEY` — Stripe key (or skip for now)
+6. Deploy — Railway runs:
+   - **Build:** `cd frontend && npm ci && npm run build && cd ../backend && npm ci && npm run build`
+   - **Start:** `cd backend && npx prisma migrate deploy && node dist/index.js`
 7. Railway gives you a public URL like `https://your-app.up.railway.app`
-8. Run migrations: Railway terminal → `npx prisma migrate deploy`
-9. Seed the database with test users (run seed script or create manually)
+8. Seed the database with an initial admin account (run seed script or create manually via Railway terminal)
 
-### Step-by-step: Deploy frontend to Vercel
+### How the single service works
 
-1. Go to **vercel.com** → **New Project** → Import `SwimmingPoolCleaningService`
-2. Set **Root Directory** to `frontend`
-3. Add environment variable: `VITE_API_URL` = `https://your-app.up.railway.app/api`
-4. Deploy — Vercel runs `npm run build` and hosts the static files
-5. Vercel gives you a URL like `https://your-app.vercel.app`
-6. Go back to Railway → update `FRONTEND_URL` to your Vercel URL (replaces `*`)
+Express serves both the API and the React frontend from one server:
+
+| Request | What Railway Does |
+|---|---|
+| `GET /` | Serves `frontend/dist/index.html` (React SPA) |
+| `GET /assets/main.js` | Serves built JS bundle from `frontend/dist/` |
+| `GET /api/pools` | Routes to Express API controller → PostgreSQL → JSON response |
+| `GET /dashboard` | Catch-all → serves `index.html` → React Router handles client-side routing |
 
 ### What changes between dev and production
 
 | Thing | Development (local) | Production (deployed) |
 |---|---|---|
-| Backend URL | `http://localhost:3000` | `https://your-app.up.railway.app` |
-| Frontend URL | `http://localhost:5174` | `https://your-app.vercel.app` |
-| API calls | Vite proxy (`/api` → port 3000) | `VITE_API_URL` env variable |
-| Database | Local PostgreSQL | Railway PostgreSQL (starts empty) |
+| URL | `http://localhost:3000` (backend) + `http://localhost:5174` (frontend) | `https://your-app.up.railway.app` (one URL for everything) |
+| API calls | Vite proxy (`/api` → port 3000) | Same-origin (`/api` — no proxy or CORS needed) |
+| Database | Local PostgreSQL | Railway PostgreSQL (starts empty, migrations run on deploy) |
 | File uploads | `backend/uploads/` on your disk | Need Cloudflare R2 (Railway disk is ephemeral) |
 | TypeScript | Runs directly via ts-node | Compiled to JS first (`tsc`), then `node dist/index.js` |
+| Frontend serving | Vite dev server (hot reload) | Express serves built static files from `frontend/dist/` |
 
 ### Code changes made for production
 
-- `backend/src/index.ts` — CORS now reads `FRONTEND_URL` env var (not `*`)
-- `frontend/src/lib/api.ts` — API base URL reads `VITE_API_URL` env var
+- `backend/src/index.ts` — Serves frontend static files from `frontend/dist/` with SPA catch-all route; CORS reads `FRONTEND_URL` env var (fallback for development)
+- `frontend/src/lib/api.ts` — API base URL defaults to `/api` (same-origin, works in both dev and production)
 - `backend/package.json` — build script runs `prisma generate` before `tsc`
+- `railway.toml` — Builds both frontend and backend, runs migrations on start, health check at `/api/health`
 
 ### Remaining tasks
 
-- Configure production environments on Railway (backend + PostgreSQL) and Vercel (frontend)
-- Set environment variables in Railway and Vercel dashboards
-- Run `prisma migrate deploy` on production database
+- Configure Railway project with app service + PostgreSQL database
+- Set environment variables in Railway dashboard
 - Seed production database with initial admin account
 - Switch file uploads to Cloudflare R2 (local disk doesn't persist on Railway)
-- Update CORS to Vercel domain (replace `*`)
-- Set up CI/CD: auto-deploy on every `git push` to main (both Railway and Vercel do this automatically)
+- Set up CI/CD: auto-deploy on every `git push` to main (Railway does this automatically when connected to GitHub)
 - Application monitoring: Sentry (errors), Railway metrics (CPU/memory)
+- Optional: Add Cloudflare (free) in front of Railway for CDN + DDoS protection if expanding beyond Dallas
 
 **Why Phase 11:** Deployment is the final gate. All features should be stable and tested before pushing to production.
 

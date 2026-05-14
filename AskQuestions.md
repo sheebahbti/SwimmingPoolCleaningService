@@ -77,7 +77,7 @@
 |---|---|---|---|
 | 7.1 | What is the **monthly infrastructure budget**? | Determines hosting choice — free tiers vs. cloud providers | Low — start with free tiers ($0–$25/month) |
 | 7.2 | Do you need **CI/CD** (automated testing and deployment)? | Saves time, catches bugs early, enables safe deploys | Yes — GitHub Actions |
-| 7.3 | Where will you **host** the app? | Affects cost, complexity, and scaling options | Vercel (frontend) + Railway (backend + DB) |
+| 7.3 | Where will you **host** the app? | Affects cost, complexity, and scaling options | Railway (single service — backend + frontend + DB) |
 | 7.4 | Do you need a **staging environment**? | Test changes before they hit production | Yes — before go-live |
 | 7.5 | What is the **uptime requirement**? (99%? 99.9%? 99.99%?) | Higher uptime = more infrastructure, more cost | 99.9% is sufficient for a local service business |
 
@@ -119,7 +119,7 @@
 | 5.7 | Reporting | Basic — revenue, appointment counts | SQL aggregation queries — no analytics platform |
 | 6.1 | Team size | ~6.5 people (4.75 FTE) | Simple stack — monolith, not microservices |
 | 6.3 | Delivery date | ~7–8 weeks for MVP with AI | Focus on Phases 1–6 first |
-| 7.3 | Hosting | Vercel + Railway | Simple, cheap, GitHub-integrated |
+| 7.3 | Hosting | Railway (single service) | Simple, cheap, GitHub-integrated |
 
 ### Ask Later (Future Phases)
 

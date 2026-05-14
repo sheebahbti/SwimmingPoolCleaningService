@@ -103,7 +103,7 @@ const users = await prisma.user.findMany();
 
 1. **Different jobs** — Express handles business logic (auth, database queries, file uploads). Vite handles compiling React/TypeScript/Tailwind into browser-ready files with instant hot reload.
 
-2. **Independent scaling** — In production, the frontend (static files) goes to **Vercel** (CDN, globally distributed) and the backend goes to **Railway** (runs Node.js near the database). One server can't do both well.
+2. **Independent scaling** — In production, Express serves both the API and the built React static files from a single Railway service. For a local Dallas business, this is simpler and sufficient. If expanding beyond Dallas later, the frontend can be split to a CDN (Cloudflare, free tier).
 
 3. **Development speed** — Vite gives instant hot module replacement (change a component → browser updates in milliseconds). Express restarts the whole Node process via nodemon. Mixing them would slow down frontend development.
 
@@ -117,7 +117,7 @@ The Vite proxy in `vite.config.ts` forwards any `/api` or `/uploads` request to 
 
 ### In production, there's no Vite server
 
-You run `npm run build` → Vite outputs static files → Vercel serves them from a CDN. Only the Express backend runs as a live server.
+You run `npm run build` → Vite outputs static files → Express serves them via `express.static`. The same Express server handles both the API routes and the frontend static files from a single Railway service.
 
 ---
 
@@ -1233,26 +1233,23 @@ Browser → GET /api/invoices
 Vite dev server intercepts → forwards to http://localhost:3000/api/invoices
 ```
 
-In production, this proxy doesn't exist — the frontend is on Vercel, not running with Vite.
-So we use an environment variable:
-```
-VITE_API_URL=https://your-app.up.railway.app/api
-```
-The `axios` client uses this as its base URL instead.
+In production, the frontend is served by the same Express server as the API — so `/api` requests go directly to the same origin. **No `VITE_API_URL` is needed in production.** The default `/api` base URL in `api.ts` works for both development (via Vite proxy) and production (same-origin).
 
 Variables prefixed with `VITE_` are **baked into the frontend bundle at build time** by Vite. They are NOT secret — they end up in the JavaScript that browsers download. Never put passwords in `VITE_` variables.
 
 ### What FRONTEND_URL does on the backend
 
-CORS (Cross-Origin Resource Sharing) is a browser security rule: if the frontend is on `vercel.app` and tries to call an API on `railway.app`, the browser blocks it — **unless** the API says "I allow requests from vercel.app".
+CORS (Cross-Origin Resource Sharing) is a browser security rule: if the frontend and API are on different domains, the browser blocks API calls unless the server explicitly allows it.
+
+In our single-service setup, **CORS is not needed in production** — the frontend and API are same-origin (same URL). The CORS middleware is configured as a fallback for development:
 
 ```typescript
 app.use(cors({
-  origin: process.env.FRONTEND_URL,  // "https://yourapp.vercel.app"
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
 }));
 ```
 
-In development `FRONTEND_URL=http://localhost:5173`. In production it's the Vercel URL.
+In development, the frontend runs on `localhost:5173` and the API on `localhost:3000` — different ports = different origins, so CORS is needed. In production, both are on the same Railway URL, so CORS doesn't apply.
 
 ### Environment variables: dev vs production
 
@@ -1260,7 +1257,7 @@ In development `FRONTEND_URL=http://localhost:5173`. In production it's the Verc
 |---|---|---|
 | `DATABASE_URL` | `postgresql://localhost:5432/...` | Railway auto-sets this |
 | `JWT_SECRET` | any string | long random secret |
-| `FRONTEND_URL` | `http://localhost:5173` | `https://yourapp.vercel.app` |
+| `FRONTEND_URL` | `http://localhost:5173` | Your Railway URL (e.g. `https://yourapp.up.railway.app`) |
 | `STRIPE_SECRET_KEY` | test key (`sk_test_...`) | live key (`sk_live_...`) |
 | `SMTP_*` | Mailtrap (catches emails) | SendGrid (sends real emails) |
 

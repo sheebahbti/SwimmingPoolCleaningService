@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import poolRoutes from './routes/pool.routes';
@@ -39,6 +40,15 @@ app.use('/api', scheduleRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', maintenanceRoutes);
 app.use('/api', invoiceRoutes);
+
+// Serve frontend static files in production
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
