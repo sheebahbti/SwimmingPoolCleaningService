@@ -197,7 +197,7 @@ npm install multer              # For handling file uploads in Express
 
 ---
 
-## Testing: Jest + Playwright + React Testing Library
+## Testing: Jest (Backend) + Vitest (Frontend) + React Testing Library
 
 ### Why These Testing Tools?
 
@@ -207,28 +207,29 @@ Testing is critical for catching regressions and building confidence before depl
 
 | Tool | Purpose | Why This Tool |
 |---|---|---|
-| **Jest** | Unit + integration tests | De facto standard for JS/TS, fast parallel execution, built-in mocking, snapshot testing, excellent TypeScript support |
+| **Jest** | Backend unit + integration tests | De facto standard for JS/TS, fast parallel execution, built-in mocking, excellent TypeScript support via ts-jest |
+| **ts-jest** | Jest TypeScript transformer | Native TypeScript support without precompilation, type checking during tests |
 | **Supertest** | API integration tests | HTTP assertions for Express, works seamlessly with Jest, test without running server |
+| **Vitest** | Frontend unit tests | Faster than Jest for Vite projects, compatible Jest API, native ESM support, integrated coverage |
 | **React Testing Library** | Component tests | Tests user behavior not implementation details, encourages accessible code, maintained by Testing Library team |
-| **Vitest** | Frontend unit tests (alternative) | Faster than Jest for Vite projects, compatible API, native ESM support |
-| **Playwright** | E2E browser tests | Cross-browser (Chrome, Firefox, Safari), auto-wait for elements, network mocking, visual regression, faster than Cypress |
 | **MSW (Mock Service Worker)** | API mocking | Intercepts network requests, same mocks work in browser and Node, no server changes needed |
 | **Faker.js** | Test data generation | Realistic fake data for users, emails, addresses, dates — better than hardcoded strings |
 
-### Why Playwright over Cypress?
+### Why Jest for Backend, Vitest for Frontend?
 
-| Feature | Playwright | Cypress |
+| Criteria | Jest (Backend) | Vitest (Frontend) |
 |---|---|---|
-| **Multi-browser** | ✅ Chrome, Firefox, Safari, Edge | ⚠️ Chrome-based only (WebKit experimental) |
-| **Parallelization** | ✅ Built-in across browsers | ⚠️ Requires paid tier |
-| **Speed** | ✅ Faster test execution | ⚠️ Slower, single-threaded |
-| **Network mocking** | ✅ Built-in route interception | ✅ Built-in |
-| **Debugging** | ✅ Trace viewer, VS Code integration | ✅ Time-travel UI |
-| **Price** | ✅ Free, open source | ⚠️ Free tier limited, paid for parallelization |
+| **Bundle format** | CommonJS native | ESM native (matches Vite) |
+| **Speed** | Fast for Node.js code | Optimized for Vite projects |
+| **Configuration** | Mature ecosystem, ts-jest | Zero-config with Vite |
+| **Coverage** | c8/Istanbul integration | Built-in v8 coverage |
+| **Watch mode** | Excellent | Excellent + HMR-like speed |
+
+Using the right tool for each environment: Jest handles backend (CommonJS, Prisma mocks, API routes), while Vitest handles frontend (ESM, React components, DOM testing).
 
 ### Testing npm Packages
 
-#### Backend Testing
+#### Backend Testing (Installed)
 
 ```bash
 # Test framework and utilities
@@ -238,33 +239,66 @@ npm install -D jest @types/jest ts-jest supertest @types/supertest
 npm install -D @faker-js/faker
 ```
 
-#### Frontend Testing
+#### Frontend Testing (Installed)
 
 ```bash
-# Unit/component testing (choose one)
+# Unit/component testing
 npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
-
-# E2E testing
-npm install -D @playwright/test
-
-# API mocking
-npm install -D msw
 ```
 
 ### Test Configuration Files
 
 | File | Purpose |
 |---|---|
-| `backend/jest.config.js` | Jest configuration for backend TypeScript tests |
-| `frontend/vitest.config.ts` | Vitest configuration for React component tests |
-| `playwright.config.ts` | Playwright E2E configuration (browsers, base URL, timeouts) |
-| `frontend/src/test/setup.ts` | Testing Library setup, MSW handlers initialization |
+| `backend/jest.config.js` | Jest configuration for backend TypeScript tests (80% coverage threshold) |
+| `frontend/vitest.config.ts` | Vitest configuration for React component tests (70% coverage threshold) |
+| `backend/src/__tests__/setup.ts` | Backend test environment setup (JWT_SECRET, timeouts) |
+| `frontend/src/__tests__/setup.ts` | Frontend Testing Library setup, mocks for localStorage, matchMedia |
 
-### Code Coverage Tool
+### Test Structure
 
-- **c8** or **nyc** for backend (Istanbul-based coverage)
-- **Vitest** has built-in coverage via v8 or Istanbul
-- Target: 80% statement coverage, 75% branch coverage
+```
+backend/src/__tests__/
+├── setup.ts                    # Test environment configuration
+├── helpers.ts                  # Mock factories (createMockUser, createMockPool, etc.)
+├── testApp.ts                  # Express app factory for integration tests
+├── mocks/
+│   └── prisma.ts               # Prisma client mock
+├── controllers/
+│   ├── auth.controller.test.ts
+│   └── invoice.controller.test.ts
+└── routes/
+    └── auth.routes.test.ts     # Integration tests with Supertest
+
+frontend/src/__tests__/
+├── setup.ts                    # DOM environment setup
+├── helpers.tsx                 # Test utilities, mock data
+└── pages/
+    └── LoginPage.test.tsx      # Component tests
+```
+
+### Code Coverage Targets
+
+| Environment | Branches | Functions | Lines | Statements |
+|---|---|---|---|---|
+| Backend (Jest) | 80% | 80% | 80% | 80% |
+| Frontend (Vitest) | 70% | 70% | 70% | 70% |
+
+### Running Tests
+
+```bash
+# Backend
+cd backend
+npm test                    # Run all tests
+npm run test:watch          # Watch mode
+npm run test:coverage       # Coverage report
+
+# Frontend
+cd frontend
+npm test                    # Run all tests
+npm run test:watch          # Watch mode
+npm run test:coverage       # Coverage report
+```
 
 ---
 

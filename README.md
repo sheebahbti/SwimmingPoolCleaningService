@@ -58,12 +58,13 @@ Single-service deployment: Express serves both the API and the built React front
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19, TypeScript, Tailwind CSS, FullCalendar, Axios |
+| Frontend | React 19, TypeScript, Tailwind CSS 4, FullCalendar, Axios |
 | Backend | Node.js, Express 5, TypeScript, Passport.js + JWT |
 | Database | PostgreSQL, Prisma ORM |
 | Payments | Stripe (PaymentIntent flow) |
 | Email | Nodemailer (Mailtrap for testing) |
 | File Upload | Multer (local dev), Cloudflare R2 (production) |
+| Testing | Jest + ts-jest + Supertest (backend), Vitest + React Testing Library (frontend) |
 | Deployment | Render (single service), Nixpacks |
 
 ## Documentation
@@ -113,6 +114,46 @@ This project includes extensive design documentation:
    ```
    npx prisma migrate dev
    ```
+
+## Testing
+
+The project includes comprehensive test suites for both backend and frontend.
+
+### Backend Tests (Jest)
+
+```bash
+cd backend
+
+# Run all tests
+npm test
+
+# Watch mode for development
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Coverage targets:** 80% branches, functions, lines, and statements.
+
+### Frontend Tests (Vitest)
+
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Watch mode for development
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Test structure:**
+- `backend/src/__tests__/` — Controller unit tests, route integration tests
+- `frontend/src/__tests__/` — Component tests, helper utilities
 
 ## Running the App
 
