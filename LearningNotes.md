@@ -1268,3 +1268,156 @@ Render servers can restart, redeploy, or move to different hardware at any time.
 - Solution: use **Cloudflare R2** (cloud object storage) — files stored there persist forever
 
 This is a known trade-off with cloud platforms. The database persists (it's a separate managed service), but the local filesystem is temporary.
+
+---
+
+## 🧠 System Design Learning Summary
+
+---
+
+## Part 1 — How This App Is Built (Single-Region, Dallas TX)
+
+This service was designed from the start as a **single-region application**. All customers, technicians, and admins are in Dallas, TX. That constraint shapes every architecture decision.
+
+### Architecture Assumptions
+
+| Assumption | Impact |
+|---|---|
+| All users in one city | No CDN benefit — everyone hits the same server |
+| ~20–200 concurrent users | One app server is enough — no load balancer needed |
+| No global data distribution | One PostgreSQL database is sufficient |
+| Stateless auth (JWT) | No Redis / session store needed |
+| Free tier deployment | Render single service (Express serves API + React static files) |
+
+### How It's Built
+
+```
+Browser / Mobile
+      │
+      ▼
+Render (Single Service)
+  ├── React SPA (static files via express.static)
+  ├── Express API (/api/* routes)
+  ├── node-cron (reminders, invoice detection)
+      │
+      ├── PostgreSQL (Render managed DB)
+      ├── Cloudflare R2 (photo storage)
+      ├── Nodemailer / SendGrid (email)
+      └── Stripe (payments)
+```
+
+**Why no extra infrastructure:**
+- A single Render server comfortably handles hundreds of concurrent users
+- JWT is stateless — no session DB or Redis needed
+- One PostgreSQL instance handles all reads and writes at this scale
+- No CDN needed — all users are local, latency is already low
+- No load balancer — one server, one URL, no CORS
+
+### Notifications (Single Region)
+
+| Channel | Tool | Trigger |
+|---|---|---|
+| Email reminders | Nodemailer + cron | Scheduled time (e.g. 8am daily) |
+| Invoice overdue | node-cron | Daily 9am check |
+| Tech daily summary | node-cron | 6am each morning |
+
+- **Cron job** = decides WHEN to send
+- **Email / SMS** = decides HOW to deliver
+
+---
+
+## Part 2 — When This Scales (Distributed Systems)
+
+As the business grows beyond one city — multiple states, international markets — the single-region design breaks down. Here is what changes and why.
+
+> See [DistributedSystemDesign.md](DistributedSystemDesign.md) for full architecture diagrams.
+
+### 1. Why Single-Region Breaks Down
+
+| Problem | Cause | Effect |
+|---|---|---|
+| High latency for distant users | One server in one region | Users in CA or India wait longer |
+| Single point of failure | One app server | If it crashes, everyone is down |
+| DB overload | All reads + writes hit one DB | Queries slow under high traffic |
+| Cold start / downtime | One Render instance | Restarts affect all users globally |
+
+### 2. What Gets Added When Scaling
+
+**A. CDN (Content Delivery Network)**
+- Cloudflare or Amazon CloudFront
+- Stores copies of static content (CSS, JS, images) globally
+- Users in India → served from India server, not Dallas
+- Used for: static assets only. NOT for API calls or business logic
+- Cache update: TTL expiry, versioning, manual purge
+
+**B. Load Balancer**
+- Sits in front of multiple app servers
+- Routes each request to the least-busy server
+- Prevents any one server from being overwhelmed
+- Enables zero-downtime deploys (take one server down, others keep running)
+
+**C. Multiple App Servers (Horizontal Scaling)**
+- Instead of one big server, run many smaller ones
+- Stateless design (JWT) makes this possible — any server can handle any request
+- Auto-scaling: cloud adds more servers during traffic spikes, removes them after
+
+**D. Read Replicas**
+- A copy of the primary database, kept in sync
+- All writes → Primary DB
+- All reads → Replica DBs (can have multiple)
+- Benefit: primary DB only handles writes, replicas absorb read traffic
+
+**E. Caching (Redis)**
+- Stores frequently accessed data in memory
+- Examples: upcoming appointments list, customer profile, pricing
+- Much faster than hitting the DB on every request
+- Data can become slightly stale — acceptable for non-critical reads
+
+**F. Database Sharding**
+- Split data across multiple databases by region or user group
+- US users → US DB, EU users → EU DB
+- No cross-region sync needed if data is independent per shard
+- Needs a global index/routing layer to know which shard to query
+
+**G. Message Queue (e.g. RabbitMQ, SQS)**
+- Needed when cron jobs can't handle notification volume at scale
+- Producer (app server) pushes a job to the queue
+- Worker (separate service) picks up the job and sends the email/push notification
+- Decouples sending from request handling — the API doesn't wait for the email to send
+
+### 3. Scaling Comparison — This App vs. Distributed
+
+| Feature | Current (Single Region) | Distributed |
+|---|---|---|
+| Servers | 1 Render instance | Multiple servers + load balancer |
+| Database | 1 PostgreSQL | Primary + read replicas + sharding |
+| Caching | None (not needed) | Redis for hot data |
+| Static files | Served by Express | CDN (global edge nodes) |
+| Notifications | node-cron in-process | Message queue + worker services |
+| Auth | JWT (stateless) | JWT still works — no change needed |
+| Storage | Cloudflare R2 | Still R2 (already global) |
+| Deployment | Single Render service | Multi-region (e.g. AWS us-east, eu-west) |
+
+### 4. Caching vs Read Replica (Key Interview Concept)
+
+| Feature | Caching (Redis) | Read Replica |
+|---|---|---|
+| Speed | Very fast — memory | Fast — database |
+| Data type | Frequently accessed, small | Large query results |
+| Freshness | May be stale (TTL-based) | Near real-time |
+| Use case | Quick lookups, hot data | Heavy read scaling |
+| Cost | Extra Redis service | Extra DB instance |
+
+### 5. Monitoring (Essential at Scale)
+
+When running distributed systems, observability is non-negotiable.
+
+**Key metrics to track:**
+- **Latency** — how long each request takes to respond
+- **Throughput** — requests per second across all servers
+- **Error rate** — percentage of requests returning 4xx/5xx
+- **CPU / Memory** — per server, to know when to scale
+- **Cache hit rate** — what % of requests are served from Redis vs DB
+- **Queue depth** — how many jobs are waiting in the message queue
+
+**Tools:** Datadog, Grafana + Prometheus, AWS CloudWatch, Render metrics dashboard
