@@ -1,0 +1,10 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "pdftotext": true,
+        "npm run lint": true,
+        "/^cd /home/sheeba/MyProjects/SwimmingPoolCleaningService/frontend && npm test -- --run$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

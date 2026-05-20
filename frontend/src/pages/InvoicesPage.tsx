@@ -32,6 +32,7 @@ export default function InvoicesPage() {
   const [statusError, setStatusError] = useState('');
 
   const fetchInvoices = () => {
+    setLoading(true);
     const params = filter ? `?status=${filter}` : '';
     api.get(`/invoices${params}`)
       .then((res) => setInvoices(res.data))
@@ -40,7 +41,7 @@ export default function InvoicesPage() {
   };
 
   useEffect(() => {
-    setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
