@@ -327,18 +327,18 @@ npm run test:coverage       # Coverage report
 
 | Layer | Single Region (Our App — Dallas) | Multi-Region (National/Global) |
 |---|---|---|
-| **Database** | PostgreSQL (single instance on Render) | PostgreSQL + read replicas per region, OR CockroachDB (distributed SQL), OR Cosmos DB |
-| **Caching** | None needed | Redis required (edge cache per region for low-latency reads) |
-| **Auth/Sessions** | JWT (stateless — no session store) | JWT still works (no change needed) |
-| **Backend** | Single Node.js instance on Render/Render | Multiple instances per region behind a global load balancer (AWS ALB, Cloudflare) |
-| **Frontend/CDN** | Add Cloudflare (free) in front of Render | Cloudflare caches static assets globally — add only if expanding beyond Dallas |
-| **DNS** | Simple DNS | Geo-DNS routing (Route 53, Cloudflare) to route users to nearest region |
-| **Hosting** | Render/Render (simple, cheap) | AWS / Azure / GCP (multi-region infrastructure required) |
-| **Notifications** | Nodemailer + Twilio | No change (API calls are region-agnostic) |
-| **Payments** | Stripe | Stripe still works, add multi-currency support |
-| **Cost** | ~$0–$25/month (free tiers) | ~$500–$2,000+/month (multi-region compute + distributed DB) |
-| **Complexity** | Low — single deploy, single DB | High — geo-routing, replication lag, regional failover |
-| **When to use** | Users in 1 city/region | Users across country or worldwide |
+| **Database** | PostgreSQL (🔵 **single instance on Render**) | PostgreSQL + 🔴 **read replicas per region**, OR 🔴 **CockroachDB (distributed SQL)**, OR 🔴 **Cosmos DB** |
+| **Caching** | 🔵 **None needed** | 🔴 **Redis required** (🔴 **edge cache per region** for low-latency reads) |
+| **Auth/Sessions** | JWT (stateless — 🔵 **no session store**) | JWT still works (🟢 **no change needed**) |
+| **Backend** | 🔵 **Single Node.js instance** on Render/Render | 🔴 **Multiple instances per region** behind a 🔴 **global load balancer** (AWS ALB, Cloudflare) |
+| **Frontend/CDN** | 🔵 **None needed** — Express serves static files, all users in Dallas | 🔴 **Add Cloudflare** to cache static assets globally (only when expanding beyond Dallas) |
+| **DNS** | 🔵 **Simple DNS** | 🔴 **Geo-DNS routing** (Route 53, Cloudflare) to route users to nearest region |
+| **Hosting** | Render/Render (🔵 **simple, cheap**) | 🔴 **AWS / Azure / GCP** (🔴 **multi-region infrastructure required**) |
+| **Notifications** | Nodemailer + Twilio | 🟢 **No change** (API calls are region-agnostic) |
+| **Payments** | Stripe | Stripe still works, 🔴 **add multi-currency support** |
+| **Cost** | 🔵 **~$0–$25/month** (free tiers) | 🔴 **~$500–$2,000+/month** (multi-region compute + distributed DB) |
+| **Complexity** | 🔵 **Low** — single deploy, single DB | 🔴 **High** — geo-routing, replication lag, regional failover |
+| **When to use** | Users in 🔵 **1 city/region** | Users across 🔴 **country or worldwide** |
 
 ---
 
