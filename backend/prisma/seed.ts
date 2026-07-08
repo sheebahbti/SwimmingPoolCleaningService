@@ -11,9 +11,9 @@ const prisma = new PrismaClient({ adapter });
 
 // Test users from README.md
 const testUsers = [
-  { email: 'admin@example.com', name: 'Admin User', phone: '555-100-0001', role: 'ADMIN', password: 'password123' },
-  { email: 'bob@example.com', name: 'Bob Technician', phone: '555-100-0002', role: 'TECHNICIAN', password: 'password123' },
-  { email: 'alice@example.com', name: 'Alice Customer', phone: '555-100-0003', role: 'CUSTOMER', password: 'password123' },
+  { email: 'admin@example.com', name: 'Admin User', phone: '555-100-0001', role: 'ADMIN', password: 'swim@876' },
+  { email: 'bob@example.com', name: 'Bob Technician', phone: '555-100-0002', role: 'TECHNICIAN', password: 'swim@876' },
+  { email: 'alice@example.com', name: 'Alice Customer', phone: '555-100-0003', role: 'CUSTOMER', password: 'swim@876' },
 ];
 
 async function main() {
@@ -24,8 +24,9 @@ async function main() {
       where: { email: userData.email },
     });
 
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+
     if (!existing) {
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
       const user = await prisma.user.create({
         data: {
           email: userData.email,
@@ -37,7 +38,11 @@ async function main() {
       });
       console.log(`✅ Created ${user.role}: ${user.email}`);
     } else {
-      console.log(`ℹ️ User already exists: ${userData.email}`);
+      await prisma.user.update({
+        where: { email: userData.email },
+        data: { password: hashedPassword },
+      });
+      console.log(`🔄 Updated password for existing user: ${userData.email}`);
     }
   }
 

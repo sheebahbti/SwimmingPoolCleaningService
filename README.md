@@ -12,9 +12,9 @@ A full-stack scheduling and business management platform for a local pool cleani
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | admin@example.com | password123 |
-| **Technician** | bob@example.com | password123 |
-| **Customer** | alice@example.com | password123 |
+| **Admin** | admin@example.com | swim@876 |
+| **Technician** | bob@example.com | swim@876 |
+| **Customer** | alice@example.com | swim@876 |
 
 > **Note:** First load may take 30-60 seconds (free tier cold start).
 
@@ -174,9 +174,9 @@ Open http://localhost:5173 in your browser.
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@example.com | password123 |
-| Technician | bob@example.com | password123 |
-| Customer | alice@example.com | password123 |
+| Admin | admin@example.com | swim@876 |
+| Technician | bob@example.com | swim@876 |
+| Customer | alice@example.com | swim@876 |
 
 ### What each role can do
 

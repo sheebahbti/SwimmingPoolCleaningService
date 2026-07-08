@@ -341,7 +341,7 @@ describe('LoginPage', () => {
 test('customer can book an appointment', async ({ page }) => {
   await page.goto('/login');
   await page.fill('[name="email"]', 'alice@example.com');
-  await page.fill('[name="password"]', 'password123');
+  await page.fill('[name="password"]', 'swim@876');
   await page.click('button[type="submit"]');
   
   await page.goto('/booking');

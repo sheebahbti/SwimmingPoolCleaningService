@@ -242,7 +242,7 @@ This section shows example data for each table, demonstrating relationships and 
 | 6 | emma@example.com | Emma Rodriguez | 817-555-9012 | CUSTOMER | $2b$10$eF3...hashed | 2026-04-01 16:45:00 |
 
 **Notes:**
-- Passwords shown are bcrypt hashes (actual values: `password123` for all demo accounts)
+- Passwords shown are bcrypt hashes (actual values: `swim@876` for all demo accounts)
 - Admin (id=1) manages the business
 - Technicians (id=2,3) perform pool cleaning services
 - Customers (id=4,5,6) own pools and book services
