@@ -328,8 +328,7 @@ SwimmingPoolCleaningService/
 ├── requirement.md             ← What we're building (all phases)
 ├── ImplementationPhases.md    ← How we're building it (team, order)
 ├── DatabaseAndAPIDesign.md    ← Schema & API design doc
-├── SystemDesign.md            ← Architecture overview
-├── TechnologyChoices.md       ← Why we picked each technology
+├── SystemDesign.md            ← Architecture overview & why we picked each technology
 ├── LearningNotes.md           ← Your personal learning notes
 └── .gitattributes             ← Forces Linux line endings
 ```

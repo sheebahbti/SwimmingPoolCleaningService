@@ -41,8 +41,8 @@ Single-service deployment: Express serves both the API and the built React front
 | Decision | Choice | Why |
 |---|---|---|
 | Single service vs. separate frontend/backend | Single Render service | All users in Dallas — no CDN benefit. Simpler ops, no CORS. [Details](SystemDesign.md) |
-| SQL vs. NoSQL | PostgreSQL | Relational data (users → pools → appointments → invoices). ACID needed for payments. [Details](TechnologyChoices.md) |
-| Auth approach | JWT + bcrypt (no session store) | Stateless — no Redis needed at this scale. [Details](TechnologyChoices.md) |
+| SQL vs. NoSQL | PostgreSQL | Relational data (users → pools → appointments → invoices). ACID needed for payments. [Details](SystemDesign.md#database-postgresql-only) |
+| Auth approach | JWT + bcrypt (no session store) | Stateless — no Redis needed at this scale. [Details](SystemDesign.md#authentication-passportjs--jwt) |
 | File storage | Local disk (dev) → Cloudflare R2 (prod) | R2 has $0 egress, free tier never expires. [Details](SystemDesign.md#4-object-storage--pool-photos) |
 
 ## Features
@@ -73,8 +73,7 @@ This project includes extensive design documentation:
 
 | Document | What It Covers |
 |---|---|
-| [SystemDesign.md](SystemDesign.md) | Architecture, data flows, security, cost analysis, key concepts explained |
-| [TechnologyChoices.md](TechnologyChoices.md) | Tech stack decisions with rationale, scaling strategy, NoSQL comparison |
+| [SystemDesign.md](SystemDesign.md) | Architecture, data flows, security, cost analysis, technology choices with rationale, scaling strategy, NoSQL comparison, key concepts explained |
 | [DatabaseAndAPIDesign.md](DatabaseAndAPIDesign.md) | Schema design, ER relationships, REST API contract |
 | [ImplementationPhases.md](ImplementationPhases.md) | 12-phase build plan, team structure, timeline estimates |
 | [requirement.md](requirement.md) | Functional requirements by feature area |
@@ -201,8 +200,7 @@ Open http://localhost:5173 in your browser.
 │       ├── components/      # Layout, ProtectedRoute
 │       ├── context/         # Auth context + types
 │       └── lib/             # Axios API client
-├── SystemDesign.md          # Architecture & design decisions
-├── TechnologyChoices.md     # Tech stack rationale
+├── SystemDesign.md          # Architecture, design decisions & tech stack rationale
 ├── ImplementationPhases.md  # Build phases & timeline
 └── render.yaml             # Render deployment config
 ```

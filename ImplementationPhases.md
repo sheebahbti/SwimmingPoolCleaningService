@@ -4,7 +4,7 @@
 
 ## Phase 1 — Choosing Technology
 
-See [TechnologyChoices.md](TechnologyChoices.md) for full technology decisions, rationale, NoSQL comparison, and scaling strategy.
+See [SystemDesign.md](SystemDesign.md) for full technology decisions, rationale, NoSQL comparison, and scaling strategy.
 
 **Summary of choices:** Node.js + Express (TypeScript), PostgreSQL + Prisma, React + Tailwind, Passport.js + JWT, FullCalendar, Nodemailer + Twilio, Stripe, Render.
 
